@@ -2228,9 +2228,10 @@ Jayadev Memorial Rashtrotthana Hospital & Research Centre`
                 <div style={{fontSize:13,fontWeight:600,color:C.teal900}}>🌿 Free Lifestyle Consultation — auto-included</div>
               </div>
               <select className="si" value={newAppt.lifestyleDoctorId} onChange={e=>setNewAppt({...newAppt,lifestyleDoctorId:e.target.value})}>
-                <option value="">Any available lifestyle doctor</option>
+                <option value="">— Select lifestyle doctor —</option>
                 {doctors.filter(d=>d.type==="lifestyle"||!d.type).map(d=><option key={d.id} value={d.id}>{d.name} — {d.specialty}</option>)}
               </select>
+              {!newAppt.lifestyleDoctorId&&<div style={{fontSize:11,color:C.rust,marginTop:4}}>⚠️ Please select a lifestyle doctor — appointment won't appear in doctor portal without one.</div>}
             </div>
 
             {err&&<div className="err-box">{err}</div>}
@@ -2260,6 +2261,22 @@ Jayadev Memorial Rashtrotthana Hospital & Research Centre`
                       <span className={`tag ${a.visitType==="walkin_mhc"?"tag-rust":a.visitType==="mhc"?"tag-lime":"tag-teal"}`} style={{fontSize:10}}>
                         {a.visitType==="walkin_mhc"?"Walk-in MHC":a.visitType==="mhc"?"MHC":"Specialist"}
                       </span>
+                    </td>
+                    <td>
+                      {lifestyleDoc
+                        ? <div style={{fontSize:12}}>{lifestyleDoc.name}</div>
+                        : <select className="si" style={{fontSize:11,padding:"4px 6px"}}
+                            onChange={async e=>{
+                              if(!e.target.value)return;
+                              const doc=doctors.find(d=>d.id===e.target.value);
+                              const updated={...a,doctorId:e.target.value,lifestyleDoctorName:doc?.name||""};
+                              await storage.set(`appt:${a.code}`,JSON.stringify(updated));
+                              await loadData();
+                            }}>
+                            <option value="">⚠️ Assign doctor</option>
+                            {doctors.filter(d=>d.type==="lifestyle"||!d.type).map(d=><option key={d.id} value={d.id}>{d.name}</option>)}
+                          </select>
+                      }
                     </td>
                     <td>
                       {a.visitType==="specialist"
