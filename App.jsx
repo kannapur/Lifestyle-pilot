@@ -2173,9 +2173,15 @@ Jayadev Memorial Rashtrotthana Hospital & Research Centre`
               <div><div className="fl">Full Name *</div><input className="ti" placeholder="Patient full name" value={newAppt.patientName} onChange={e=>setNewAppt({...newAppt,patientName:e.target.value})}/></div>
               <div><div className="fl">Mobile *</div><input className="ti" placeholder="+91 XXXXX XXXXX" value={newAppt.mobile} onChange={e=>setNewAppt({...newAppt,mobile:e.target.value})}/></div>
             </div>
-            <div className="fg">
-              <div className="fl">Email (for confirmation)</div>
-              <input className="ti" placeholder="patient@email.com" value={newAppt.email} onChange={e=>setNewAppt({...newAppt,email:e.target.value})}/>
+            <div className="r2 fg">
+              <div><div className="fl">Email (for confirmation)</div>
+                <input className="ti" placeholder="patient@email.com" value={newAppt.email} onChange={e=>setNewAppt({...newAppt,email:e.target.value})}/>
+              </div>
+              <div><div className="fl">Hospital UHID <span style={{fontWeight:400,color:C.muted}}>(if already assigned)</span></div>
+                <input className="ti" placeholder="e.g. RH-00123 or leave blank to auto-generate"
+                  value={newAppt.patientUhid||""}
+                  onChange={e=>setNewAppt({...newAppt,patientUhid:e.target.value.toUpperCase()})}/>
+              </div>
             </div>
 
             {/* DOCTOR SELECTION */}
