@@ -116,7 +116,7 @@ const SEED_DOCTORS = [
 
 const SPECIALTIES = [
   "Cardiology","Endocrinology","General Medicine","Orthopaedics","Neurology",
-  "Gastroenterology","Nephrology","Pulmonology","Oncology","Dermatology",
+  "Anaesthesiology","Gastroenterology","Nephrology","Pulmonology","Oncology","Dermatology",
   "Gynaecology","Urology","Ophthalmology","ENT","Psychiatry",
   "Rheumatology","Haematology","Paediatrics","Surgery","Other"
 ];
@@ -1244,11 +1244,19 @@ export default function App() {
       const stored=await storage.get("doctors");
       const docs=stored?JSON.parse(stored.value):SEED_DOCTORS;
       if(docs.find(d=>d.id===newDoc.id)){setAddDocErr("Doctor ID already exists.");return;}
-      const updated=[...docs,{...newDoc}];
+      // Auto-generate password for primary consultants if left blank
+      const autoPass = newDoc.type==="primary"&&!newDoc.password
+        ? `jmrh@${newDoc.id.toLowerCase()}`
+        : newDoc.password;
+      const docToSave = {...newDoc, password: autoPass};
+      const updated=[...docs, docToSave];
       await storage.set("doctors",JSON.stringify(updated));
       setDoctors(updated);
       setNewDoc({id:"",name:"",specialty:"",dept:"Lifestyle Medicine",password:""});
       setAddDocErr("");
+      if(newDoc.type==="primary"&&!newDoc.password){
+        window.alert(`Doctor added!\nAuto-generated password: ${autoPass}\nPlease share this with the consultant.`);
+      }
     }catch(_){setAddDocErr("Failed to add doctor.");}
   };
   const removeDoctor=async(id)=>{
@@ -1531,7 +1539,7 @@ Respond ONLY with a single raw JSON object. No markdown. No explanation. Strict 
             {authRole==="physician"&&<>
               <div className="auth-h">Primary Physician Login</div>
               <div className="auth-sub">Select your name and enter your password</div>
-              {doctors.filter(d=>d.type==="primary"&&d.password).map(d=>(
+              {doctors.filter(d=>d.type==="primary").map(d=>(
                 <div key={d.id} className={`doc-opt${selDoc===d.id?" sel":""}`} onClick={()=>setSelDoc(d.id)}>
                   <div className="dav">{initials(d.name)}</div>
                   <div><div style={{fontSize:14,fontWeight:600,color:C.text}}>{d.name}</div><div style={{fontSize:11,color:C.muted}}>{d.specialty}</div></div>
@@ -1542,7 +1550,7 @@ Respond ONLY with a single raw JSON object. No markdown. No explanation. Strict 
               </div>
               {authErr&&<div className="err-box">{authErr}</div>}
               <button className="btn btn-teal btn-full" onClick={loginPhysician} disabled={!selDoc||!pwd}>Sign In →</button>
-              <div className="auth-note" style={{marginTop:12}}>Demo: PC001 → jmrh@pc01</div>
+              <div className="auth-note" style={{marginTop:12}}>Demo: PC001 → jmrh@pc01 · PC002 → jmrh@pc02 · New consultants: jmrh@[their-id-lowercase]</div>
             </>}
             {authRole==="patient"&&<>
               <div className="auth-h">Patient Login</div>
@@ -3283,7 +3291,10 @@ Jayadev Memorial Rashtrotthana Hospital & Research Centre`
               </div>
               {newDoc.type==="lifestyle"
                 ?<div><div className="fl">App Password *</div><input className="ti" type="password" placeholder="Set login password" value={newDoc.password} onChange={e=>setNewDoc({...newDoc,password:e.target.value})}/></div>
-                :<div style={{display:"flex",alignItems:"center",paddingTop:20}}><span style={{fontSize:12,color:C.muted,background:C.successLt,padding:"6px 12px",borderRadius:8}}>✓ No login required for primary consultants</span></div>
+                :<div><div className="fl">Login Password</div>
+                    <input className="ti" placeholder="Leave blank to auto-generate (e.g. jmrh@pc06)" value={newDoc.password} onChange={e=>setNewDoc({...newDoc,password:e.target.value})}/>
+                    <div style={{fontSize:10,color:C.muted,marginTop:3}}>Used by the consultant to log in to the Physician portal</div>
+                  </div>
               }
             </div>
             {addDocErr&&<div className="err-box">{addDocErr}</div>}
@@ -3294,17 +3305,18 @@ Jayadev Memorial Rashtrotthana Hospital & Research Centre`
           <div className="card">
             <div style={{fontFamily:"'Playfair Display',serif",fontSize:16,color:C.teal900,marginBottom:12}}>🏥 Primary Consultants ({doctors.filter(d=>d.type==="primary").length})</div>
             <table className="tbl">
-              <thead><tr><th>Name</th><th>Specialty</th><th>ID</th><th>Appts</th><th></th></tr></thead>
+              <thead><tr><th>Name</th><th>Specialty</th><th>ID</th><th>Password</th><th>Appts</th><th></th></tr></thead>
               <tbody>{doctors.filter(d=>d.type==="primary").map(d=>(
                 <tr key={d.id}>
                   <td><div style={{fontWeight:600}}>{d.name}</div></td>
                   <td><span className="tag tag-teal">{d.specialty}</span></td>
                   <td style={{fontFamily:"monospace",color:C.teal700,fontSize:12}}>{d.id}</td>
+                  <td style={{fontFamily:"monospace",fontSize:11,color:C.muted}}>{d.password||<span style={{color:C.danger,fontSize:11}}>⚠ No password</span>}</td>
                   <td style={{fontSize:12}}>{appointments.filter(a=>a.primaryDoctorId===d.id).length}</td>
                   <td><button className="btn btn-ghost" style={{padding:"5px 10px",fontSize:11,color:C.danger,borderColor:C.danger}} onClick={()=>removeDoctor(d.id)}>Remove</button></td>
                 </tr>
               ))}
-              {doctors.filter(d=>d.type==="primary").length===0&&<tr><td colSpan={5} style={{color:C.muted,fontSize:13,textAlign:"center",padding:16}}>No primary consultants added yet</td></tr>}
+              {doctors.filter(d=>d.type==="primary").length===0&&<tr><td colSpan={6} style={{color:C.muted,fontSize:13,textAlign:"center",padding:16}}>No primary consultants added yet</td></tr>}
               </tbody>
             </table>
           </div>
