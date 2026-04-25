@@ -611,7 +611,18 @@ export default function App() {
   const [ptFormSaved,setPtFormSaved]=useState(false);
 
   // Physician OPD notes
-  const BLANK_PHY_NOTES=()=>({diagnosis:"",investigations:[],medications:"",followUp:"",notes:""});
+  const BLANK_PHY_NOTES=()=>({
+    additionalHistory:"", examinationType:"simple",
+    vitals:{pulse:"",bpSys:"",bpDia:"",temp:"",spo2:"",rr:""},
+    generalExam:{pallor:"",icterus:"",cyanosis:"",clubbing:"",lymphadenopathy:"",oedema:""},
+    systemExam:{cvs:"",resp:"",abdomen:"",cns:""},
+    additionalFindings:"",
+    workingDiagnosis:"", clinicalImpression:"", diagnosisType:"provisional",
+    meds:Array.from({length:10},()=>({drug:"",dose:"",frequency:"",duration:"",route:"Oral",timing:"After food"})),
+    additionalMeds:"", investigations:[], additionalInvestigations:"",
+    advice:[], additionalAdvice:"", followUp:"", notes:"", savedAt:"",
+    diagnosis:""
+  });
   const [physNotes,setPhysNotes]=useState(BLANK_PHY_NOTES());
   const [physNotesSaved,setPhysNotesSaved]=useState(false);
   // New doctor form
@@ -819,6 +830,7 @@ export default function App() {
       setAllArchive(prev=>prev.map(r=>r.id===viewRec.id?updated:r));
       setArchive(prev=>prev.map(r=>r.id===viewRec.id?updated:r));
       setPhysNotesSaved(true);setTimeout(()=>setPhysNotesSaved(false),2500);
+      setPhysNotes(p=>({...p,savedAt:new Date().toISOString()}));
     }catch(_){}
   };
   /* ── FORM SAVE + AI ── */
@@ -1921,6 +1933,47 @@ Jayadev Memorial Rashtrotthana Hospital & Research Centre`
 
   /* ── PRIMARY PHYSICIAN PORTAL ── */
   if(user.role==="physician"){
+    const pt=viewRec?.patient||{};
+    const fd=viewRec?.formData||{};
+    const appt=viewRec?.apptData||{};
+
+    // BMI
+    const bmiVal=(pt.height&&pt.weight)?(parseFloat(pt.weight)/Math.pow(parseFloat(pt.height)/100,2)).toFixed(1):"";
+    const bmiFlag=bmiVal&&(parseFloat(bmiVal)<18.5||parseFloat(bmiVal)>30);
+
+    // Vitals flags
+    const bpSysN=parseInt(physNotes.vitals?.bpSys||0);
+    const bpDiaN=parseInt(physNotes.vitals?.bpDia||0);
+    const spo2N=parseInt(physNotes.vitals?.spo2||100);
+    const pulseN=parseInt(physNotes.vitals?.pulse||70);
+    const bpFlag=bpSysN>140||bpDiaN>90;
+    const spo2Flag=spo2N>0&&spo2N<94;
+    const pulseFlag=pulseN>0&&(pulseN<50||pulseN>100);
+    const allergyFlag=pt.allergies&&pt.allergies.toLowerCase()!=="none"&&pt.allergies.trim()!=="";
+
+    const MED_BLANK=()=>({drug:"",dose:"",frequency:"",duration:"",route:"Oral",timing:"After food"});
+    const ensureMeds=arr=>{const a=Array.isArray(arr)?arr:[];while(a.length<10)a.push(MED_BLANK());return a.slice(0,10);};
+    const meds=ensureMeds(physNotes.meds);
+
+    const DRUGS=["— Select —","Metformin 500mg (Glycomet)","Metformin 1000mg (Glycomet SR)","Glimepiride 1mg (Amaryl)","Glimepiride 2mg (Amaryl)","Glibenclamide 5mg","Sitagliptin 100mg (Januvia)","Empagliflozin 10mg (Jardiance)","Amlodipine 5mg (Amlodac)","Amlodipine 10mg","Telmisartan 40mg (Telma)","Telmisartan 80mg","Losartan 50mg (Cosart)","Ramipril 2.5mg (Cardace)","Ramipril 5mg","Enalapril 5mg","Metoprolol 25mg (Metolar)","Metoprolol 50mg","Atenolol 50mg","Atorvastatin 10mg (Atorva)","Atorvastatin 20mg","Rosuvastatin 10mg (Rozucor)","Aspirin 75mg (Ecosprin)","Clopidogrel 75mg","Pantoprazole 40mg (Pan)","Omeprazole 20mg (Omez)","Ranitidine 150mg","Levothyroxine 25mcg (Thyronorm)","Levothyroxine 50mcg","Levothyroxine 75mcg","Levothyroxine 100mcg","Vitamin D3 60000 IU (Calcirol)","Vitamin B12 1500mcg (Mecobalamin)","Iron + Folic Acid (Feronia-XT)","Calcium + D3 (Shelcal)","Paracetamol 500mg (Crocin)","Paracetamol 650mg (Dolo)","Ibuprofen 400mg (Brufen)","Azithromycin 500mg (Azithral)","Amoxicillin 500mg","Metronidazole 400mg","Furosemide 40mg (Lasix)","Spironolactone 25mg (Aldactone)","Pregabalin 75mg","Gabapentin 300mg","Alprazolam 0.25mg","Escitalopram 10mg","Other (write below)"];
+    const FREQ=["OD – Once daily","BD – Twice daily","TID – Three times daily","QID – Four times daily","HS – At bedtime","SOS – As needed","Weekly once","Alternate days"];
+    const DUR=["3 days","5 days","7 days","10 days","2 weeks","1 month","3 months","6 months","Ongoing","Till review"];
+    const ROUTE=["Oral","IV","IM","SC","Topical","Inhaled","Sublingual"];
+    const TIMING=["After food","Before food","With food","At bedtime","Empty stomach","With milk"];
+    const CVS_OPTS=["Normal","Murmur present","S3/S4 gallop","Irregular rhythm","Other"];
+    const RESP_OPTS=["Clear bilaterally","Wheeze","Crepitations","Reduced air entry","Stridor","Other"];
+    const ABD_OPTS=["Soft, non-tender","Tenderness present","Hepatomegaly","Splenomegaly","Ascites","Other"];
+    const CNS_OPTS=["Alert & oriented","Altered sensorium","Focal deficit","Tremor","Other"];
+    const ADVICE_OPTS=["Low salt diet","Low fat diet","Diabetic diet","Avoid refined sugars","Daily walking 30 min","Yoga / stretching","Avoid NSAIDs","Avoid alcohol","Quit smoking","Weight reduction target","Regular BP monitoring","Regular blood sugar monitoring","Stress management","Adequate hydration"];
+
+    const setVital=(k,v)=>setPhysNotes(p=>({...p,vitals:{...(p.vitals||{}),k_:v,[k]:v}}));
+    const setGE=(k,v)=>setPhysNotes(p=>({...p,generalExam:{...(p.generalExam||{}),[k]:v}}));
+    const setSE=(k,v)=>setPhysNotes(p=>({...p,systemExam:{...(p.systemExam||{}),[k]:v}}));
+    const setMedRow=(i,k,v)=>setPhysNotes(p=>{const m=[...ensureMeds(p.meds)];m[i]={...m[i],[k]:v};return{...p,meds:m};});
+    const toggleAdv=(v)=>setPhysNotes(p=>{const a=p.advice||[];return{...p,advice:a.includes(v)?a.filter(x=>x!==v):[...a,v]};});
+
+    const VFlag=({flag,children})=><span style={{color:flag?C.danger:C.text,fontWeight:flag?700:400,background:flag?"#FEE2E2":"transparent",borderRadius:4,padding:flag?"1px 4px":0}}>{children}</span>;
+
     return(
       <>
         <style>{G}</style>
@@ -1933,6 +1986,8 @@ Jayadev Memorial Rashtrotthana Hospital & Research Centre`
               <button className="nbtn" onClick={()=>{setUser(null);setArchive([]);setViewRec(null);}}>Sign Out</button>
             </div>
           </div>
+
+          {/* LIST VIEW */}
           {!viewRec&&<div className="page fade">
             <div style={{marginBottom:20}}>
               <div style={{fontSize:13,color:C.muted}}>Lifestyle prescriptions for your referred patients</div>
@@ -1948,8 +2003,8 @@ Jayadev Memorial Rashtrotthana Hospital & Research Centre`
             {archive.length===0
               ?<div className="card" style={{textAlign:"center",padding:"48px 20px",color:C.muted}}>
                 <div style={{fontSize:36,marginBottom:10}}>📋</div>
-                <div style={{fontSize:16,fontWeight:600,marginBottom:4}}>No lifestyle consultations yet</div>
-                <div style={{fontSize:13}}>Consultations for your referred patients will appear here once completed.</div>
+                <div style={{fontSize:16,fontWeight:600,marginBottom:4}}>No consultations yet</div>
+                <div style={{fontSize:13}}>Completed lifestyle consultations for your referred patients will appear here.</div>
               </div>
               :<div className="arch-grid">
                 {archive.filter(r=>{const q=search.toLowerCase();return !q||r.patient?.name?.toLowerCase().includes(q)||r.patient?.uhid?.toLowerCase().includes(q);}).map((r,i)=>(
@@ -1961,57 +2016,316 @@ Jayadev Memorial Rashtrotthana Hospital & Research Centre`
                       {r.rx?.riskCategory&&<span className={`risk-badge ${riskClass(r.rx.riskCategory)}`}>{r.rx.riskCategory}</span>}
                     </div>
                     <div style={{fontSize:11,color:C.muted,marginTop:5}}>UHID: {r.patient?.uhid} · {r.patient?.age}yr · {r.patient?.gender}</div>
-                    {r.physicianNotes?.diagnosis&&<div style={{fontSize:10,color:C.success,marginTop:3}}>✓ Notes saved</div>}
+                    {r.patient?.allergies&&r.patient.allergies.toLowerCase()!=="none"&&<div style={{fontSize:10,color:C.danger,fontWeight:700,marginTop:3}}>⚠ ALLERGY: {r.patient.allergies}</div>}
+                    {r.physicianNotes?.savedAt&&<div style={{fontSize:10,color:C.success,marginTop:3}}>✓ Notes saved {fmtDate(r.physicianNotes.savedAt)}</div>}
                   </div>
                 ))}
               </div>
             }
           </div>}
+
+          {/* CASE SHEET */}
           {viewRec&&<div className="page fade">
             <div className="nav-row no-print" style={{marginBottom:16}}>
               <button className="btn btn-ghost" onClick={()=>{setViewRec(null);setPhysNotesSaved(false);}}>← Back</button>
-              <button className="btn btn-rust" onClick={printOpd}>🖨 Print OPD Sheet</button>
+              <div style={{display:"flex",gap:8}}>
+                {physNotesSaved&&<span style={{fontSize:12,color:C.success,alignSelf:"center"}}>✓ Saved</span>}
+                <button className="btn btn-lime" onClick={savePhysicianNotes}>💾 Save</button>
+                <button className="btn btn-rust" onClick={printOpd}>🖨 Print</button>
+              </div>
             </div>
-            <div id="print-opd" style={{background:"white",padding:"16px 20px"}}>
-              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:12}}>
+
+            {/* ══ PRINT TARGET ══ */}
+            <div id="print-opd">
+
+              {/* HEADER */}
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:10,padding:"0 0 10px",borderBottom:`2px solid ${C.teal700}`}}>
                 <img src={LOGO_HORIZONTAL} alt="JMRH" style={{height:44,width:"auto"}}/>
-                <div style={{textAlign:"right"}}><div style={{fontSize:13,fontWeight:700,color:C.teal700}}>OPD Consultation Notes</div><div style={{fontSize:11,color:C.muted}}>Primary Physician</div></div>
+                <div style={{textAlign:"right"}}>
+                  <div style={{fontSize:13,fontWeight:700,color:C.teal700}}>OPD Case Sheet</div>
+                  <div style={{fontSize:11,color:C.muted}}>{user.name} · {user.specialty}</div>
+                  <div style={{fontSize:11,color:C.muted}}>{new Date().toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"})} · {new Date().toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit"})}</div>
+                </div>
               </div>
-              <div style={{borderTop:`2px solid ${C.teal700}`,marginBottom:12}}/>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,background:C.teal50,borderRadius:8,padding:"10px 14px",marginBottom:12,fontSize:12}}>
-                <div><strong>Patient:</strong> {viewRec.patient?.name}</div>
-                <div><strong>UHID:</strong> {viewRec.patient?.uhid}</div>
-                <div><strong>Age/Gender:</strong> {viewRec.patient?.age}yr · {viewRec.patient?.gender}</div>
-                <div><strong>Date:</strong> {new Date().toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"})}</div>
-                <div><strong>Specialty:</strong> {viewRec.apptData?.primarySpecialty||"—"}</div>
-                <div><strong>Consultant:</strong> {user.name}</div>
-                <div style={{gridColumn:"span 2"}}><strong>Complaint:</strong> {viewRec.patient?.chiefComplaint||viewRec.apptData?.chiefComplaint||"—"}</div>
+
+              {/* ALLERGY FLAG */}
+              {allergyFlag&&<div style={{background:"#FEE2E2",border:"2px solid #B91C1C",borderRadius:8,padding:"8px 14px",marginBottom:10,display:"flex",alignItems:"center",gap:8}}>
+                <span style={{fontSize:18}}>⚠️</span>
+                <div><div style={{fontSize:12,fontWeight:800,color:"#B91C1C",textTransform:"uppercase",letterSpacing:1}}>ALLERGY ALERT</div><div style={{fontSize:14,fontWeight:700,color:"#7F1D1D"}}>{pt.allergies}</div></div>
+              </div>}
+
+              {/* PATIENT SUMMARY */}
+              <div style={{background:C.teal50,borderRadius:8,padding:"10px 14px",marginBottom:10,display:"grid",gridTemplateColumns:"1fr 1fr",gap:"4px 16px",fontSize:12}}>
+                <div><strong>Name:</strong> {pt.name}</div>
+                <div><strong>UHID:</strong> {pt.uhid}</div>
+                <div><strong>Age/Gender:</strong> {pt.age}yr · {pt.gender}</div>
+                <div><strong>Blood Group:</strong> {pt.bloodGroup||"—"}</div>
+                <div style={{gridColumn:"span 2"}}><strong>Visit Type:</strong> {appt.visitType==="specialist"?"Specialist – "+appt.primarySpecialty:appt.visitType==="mhc"?"Master Health Check-up":"Walk-in MHC"}</div>
+                <div style={{gridColumn:"span 2"}}><strong>Reason for Visit / Chief Complaint:</strong> {pt.chiefComplaint||appt.chiefComplaint||"—"}</div>
               </div>
-              <div style={{marginBottom:10}}><div style={{fontSize:11,fontWeight:700,color:C.teal700,textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Diagnosis</div><div style={{minHeight:28,borderBottom:`1px solid ${C.border}`,fontSize:13,paddingBottom:4}}>{physNotes.diagnosis}</div></div>
-              {physNotes.investigations?.length>0&&<div style={{marginBottom:10}}><div style={{fontSize:11,fontWeight:700,color:C.teal700,textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>Investigations</div><div style={{display:"flex",flexWrap:"wrap",gap:5}}>{physNotes.investigations.map(inv=><span key={inv} style={{background:C.teal50,border:`1px solid ${C.teal400}`,borderRadius:6,padding:"2px 8px",fontSize:12}}>{inv}</span>)}</div></div>}
-              <div style={{marginBottom:10}}><div style={{fontSize:11,fontWeight:700,color:C.teal700,textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Medications</div><div style={{minHeight:44,borderBottom:`1px solid ${C.border}`,fontSize:13,whiteSpace:"pre-wrap",paddingBottom:4}}>{physNotes.medications}</div></div>
-              <div style={{marginBottom:10}}><div style={{fontSize:11,fontWeight:700,color:C.teal700,textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Physician Notes</div><div style={{minHeight:44,borderBottom:`1px solid ${C.border}`,fontSize:13,whiteSpace:"pre-wrap",paddingBottom:4}}>{physNotes.notes}</div></div>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}><div><div style={{fontSize:11,fontWeight:700,color:C.teal700,letterSpacing:1,textTransform:"uppercase",marginBottom:4}}>Follow-up</div><div style={{fontSize:14,fontWeight:600}}>{physNotes.followUp||"—"}</div></div><div><div style={{fontSize:11,fontWeight:700,color:C.teal700,letterSpacing:1,textTransform:"uppercase",marginBottom:4}}>Lifestyle Risk</div><div style={{fontSize:14,fontWeight:600}}>{viewRec.rx?.riskCategory||"—"}</div></div></div>
-              <div style={{borderTop:`1px solid ${C.border}`,paddingTop:12,display:"flex",justifyContent:"space-between",fontSize:11,color:C.muted}}><div>Jayadev Memorial Rashtrotthana Hospital & Research Centre</div><div style={{textAlign:"right"}}><div style={{borderTop:"1px solid #999",width:140,marginBottom:3}}/><div>{user.name}</div><div>{user.specialty}</div></div></div>
-            </div>
-            <div className="card no-print" style={{marginTop:20,borderColor:C.teal400}}>
-              <div style={{fontFamily:"'Playfair Display',serif",fontSize:18,color:C.teal900,marginBottom:14}}>📝 Consultant Notes</div>
-              <div className="fg"><div className="fl">Diagnosis</div><input className="ti" placeholder="Clinical diagnosis…" value={physNotes.diagnosis} onChange={e=>setPhysNotes({...physNotes,diagnosis:e.target.value})}/></div>
-              <div className="fg"><div className="fl">Investigations</div><div style={{display:"flex",flexWrap:"wrap",gap:6,marginTop:4}}>{["CBC","Blood Sugar F/PP","HbA1c","Lipid Profile","LFT","RFT / Creatinine","Thyroid (TSH)","ECG","2D Echo","Chest X-Ray","USG Abdomen","Vitamin D","Vitamin B12","Urine R/M","BMD","Other"].map(inv=>{const on=(physNotes.investigations||[]).includes(inv);return(<div key={inv} onClick={()=>{const arr=physNotes.investigations||[];setPhysNotes({...physNotes,investigations:on?arr.filter(x=>x!==inv):[...arr,inv]});}} style={{padding:"5px 12px",borderRadius:20,border:`1.5px solid ${on?C.teal700:C.border}`,background:on?C.teal50:C.bg,cursor:"pointer",fontSize:12,color:on?C.teal900:C.text,fontWeight:on?600:400}}>{on?"✓ ":""}{inv}</div>);})}</div></div>
-              <div className="fg"><div className="fl">Medications / Rx</div><textarea className="ti" rows={4} placeholder="Medications, doses, frequency…" value={physNotes.medications} onChange={e=>setPhysNotes({...physNotes,medications:e.target.value})} style={{resize:"vertical"}}/></div>
-              <div className="fg"><div className="fl">Physician Notes</div><textarea className="ti" rows={4} placeholder="Clinical observations, referrals, special instructions…" value={physNotes.notes} onChange={e=>setPhysNotes({...physNotes,notes:e.target.value})} style={{resize:"vertical"}}/></div>
-              <div className="fg"><div className="fl">Follow-up</div><select className="si" value={physNotes.followUp} onChange={e=>setPhysNotes({...physNotes,followUp:e.target.value})}><option value="">Select…</option>{["1 week","2 weeks","4 weeks","6 weeks","3 months","6 months"].map(f=><option key={f} value={f}>{f}</option>)}</select></div>
-              {physNotesSaved&&<div className="success-box">✓ Saved</div>}
-              <div style={{display:"flex",gap:10}}>
-                <button className="btn btn-lime" style={{flex:1,justifyContent:"center",padding:"12px"}} onClick={savePhysicianNotes}>💾 Save Notes</button>
-                <button className="btn btn-rust" style={{flex:1,justifyContent:"center",padding:"12px"}} onClick={printOpd}>🖨 Print OPD Sheet</button>
+
+              {/* HISTORY */}
+              <div className="card" style={{marginBottom:10,padding:"10px 14px"}}>
+                <div style={{fontSize:12,fontWeight:700,color:C.teal900,marginBottom:8,borderBottom:`1px solid ${C.divider}`,paddingBottom:4}}>HISTORY</div>
+                <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"4px 16px",fontSize:12}}>
+                  <div><strong>Current Diagnosis:</strong> {pt.diagnosis||"—"}</div>
+                  <div><strong>Height / Weight:</strong> {pt.height?pt.height+"cm":""}{pt.height&&pt.weight?" / ":""}{pt.weight?pt.weight+"kg":""}{bmiVal?<span style={{color:bmiFlag?C.danger:C.success,fontWeight:600}}> BMI: {bmiVal}</span>:""}</div>
+                  <div style={{gridColumn:"span 2"}}><strong>Past History:</strong> {pt.pastHistory||"—"}</div>
+                  <div style={{gridColumn:"span 2"}}><strong>Current Medications:</strong> {pt.medications||"—"}</div>
+                  <div style={{gridColumn:"span 2",color:allergyFlag?C.danger:"inherit",fontWeight:allergyFlag?700:400}}><strong>Allergies:</strong> {pt.allergies||"None"}</div>
+                  <div style={{gridColumn:"span 2"}}><strong>Family History:</strong> {pt.familyHistory||"—"}</div>
+                  <div><strong>Physical Activity:</strong> {fd.activity?.current||"—"}</div>
+                  <div><strong>Sleep:</strong> {fd.sleep?.quality||""}{fd.sleep?.duration?" · "+fd.sleep.duration:""}</div>
+                  <div><strong>Bowel:</strong> {fd.bowel?.freq||""}{fd.bowel?.consistency?" · "+fd.bowel.consistency:""}</div>
+                  <div><strong>Micturition:</strong> {fd.mic?.dayFreq||""}{fd.mic?.nocturia?" · nocturia "+fd.mic.nocturia:""}</div>
+                  <div><strong>Alcohol:</strong> {fd.habits?.alcohol||"—"}</div>
+                  <div><strong>Smoking:</strong> {fd.habits?.smoking||"—"}</div>
+                </div>
+                <div style={{marginTop:8}}>
+                  <div style={{fontSize:11,fontWeight:700,color:C.teal700,marginBottom:4}}>Additional History</div>
+                  <textarea className="ti no-print" rows={3} placeholder="Any additional history not captured above…" value={physNotes.additionalHistory||""} onChange={e=>setPhysNotes(p=>({...p,additionalHistory:e.target.value}))} style={{resize:"vertical",fontSize:12}}/>
+                  {physNotes.additionalHistory&&<div className="print-only" style={{fontSize:12,whiteSpace:"pre-wrap",borderBottom:`1px solid ${C.border}`,minHeight:24,paddingBottom:4}}>{physNotes.additionalHistory}</div>}
+                </div>
               </div>
+
+              {/* EXAMINATION */}
+              <div className="card" style={{marginBottom:10,padding:"10px 14px"}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8,borderBottom:`1px solid ${C.divider}`,paddingBottom:4}}>
+                  <div style={{fontSize:12,fontWeight:700,color:C.teal900}}>EXAMINATION</div>
+                  <div className="no-print" style={{display:"flex",gap:6}}>
+                    {["simple","comprehensive"].map(t=>(
+                      <div key={t} onClick={()=>setPhysNotes(p=>({...p,examinationType:t}))}
+                        style={{padding:"3px 10px",borderRadius:6,fontSize:11,cursor:"pointer",fontWeight:600,
+                          background:(physNotes.examinationType||"simple")===t?C.teal700:C.bg,
+                          color:(physNotes.examinationType||"simple")===t?"white":C.muted,
+                          border:`1px solid ${(physNotes.examinationType||"simple")===t?C.teal700:C.border}`}}>
+                        {t.charAt(0).toUpperCase()+t.slice(1)}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* VITALS */}
+                <div style={{fontSize:11,fontWeight:700,color:C.teal700,marginBottom:6,textTransform:"uppercase",letterSpacing:0.5}}>Vitals</div>
+                <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:6,marginBottom:8}}>
+                  {[
+                    {k:"pulse",l:"Pulse (bpm)",flag:pulseFlag,opts:["","40","50","60","70","72","76","80","84","88","90","96","100","110","120","130","140","150","160"]},
+                    {k:"bpSys",l:"BP Systolic",flag:bpFlag,opts:["","90","95","100","105","110","115","120","125","130","135","140","145","150","155","160","170","180","190","200"]},
+                    {k:"bpDia",l:"BP Diastolic",flag:bpFlag,opts:["","60","65","70","75","80","85","90","95","100","105","110","115","120"]},
+                    {k:"temp",l:"Temp (°F)",flag:false,opts:["","97.0","97.5","98.0","98.4","98.6","99.0","99.5","100.0","100.5","101.0","101.5","102.0","103.0","104.0","105.0"]},
+                    {k:"spo2",l:"SpO2 (%)",flag:spo2Flag,opts:["","85","86","87","88","89","90","91","92","93","94","95","96","97","98","99","100"]},
+                    {k:"rr",l:"RR (/min)",flag:false,opts:["","12","14","16","18","20","22","24","26","28","30"]},
+                  ].map(({k,l,flag,opts})=>(
+                    <div key={k}>
+                      <div style={{fontSize:10,color:flag?C.danger:C.muted,fontWeight:flag?700:400,marginBottom:2}}>{l}{flag?" ⚠":""}</div>
+                      <select className="si" style={{fontSize:12,padding:"4px 6px",borderColor:flag?"#B91C1C":"",background:flag?"#FEE2E2":""}}
+                        value={(physNotes.vitals||{})[k]||""}
+                        onChange={e=>setPhysNotes(p=>({...p,vitals:{...(p.vitals||{}),[k]:e.target.value}}))}>
+                        {opts.map(o=><option key={o} value={o}>{o||"—"}</option>)}
+                      </select>
+                    </div>
+                  ))}
+                </div>
+
+                {/* GENERAL EXAM — comprehensive only */}
+                {(physNotes.examinationType||"simple")==="comprehensive"&&<>
+                  <div style={{fontSize:11,fontWeight:700,color:C.teal700,marginBottom:6,textTransform:"uppercase",letterSpacing:0.5}}>General Examination</div>
+                  <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:6,marginBottom:8}}>
+                    {["pallor","icterus","cyanosis","clubbing","lymphadenopathy","oedema"].map(k=>(
+                      <div key={k}>
+                        <div style={{fontSize:10,color:C.muted,marginBottom:2,textTransform:"capitalize"}}>{k}</div>
+                        <select className="si" style={{fontSize:12,padding:"4px 6px"}}
+                          value={(physNotes.generalExam||{})[k]||""}
+                          onChange={e=>setPhysNotes(p=>({...p,generalExam:{...(p.generalExam||{}),[k]:e.target.value}}))}>
+                          <option value="">—</option>
+                          <option value="Absent">Absent</option>
+                          <option value="Present">Present</option>
+                          <option value="+">+</option>
+                          <option value="++">++</option>
+                        </select>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* SYSTEM EXAM */}
+                  <div style={{fontSize:11,fontWeight:700,color:C.teal700,marginBottom:6,textTransform:"uppercase",letterSpacing:0.5}}>Systemic Examination</div>
+                  <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,marginBottom:8}}>
+                    {[{k:"cvs",l:"CVS",opts:CVS_OPTS},{k:"resp",l:"Respiratory",opts:RESP_OPTS},{k:"abdomen",l:"Abdomen",opts:ABD_OPTS},{k:"cns",l:"CNS",opts:CNS_OPTS}].map(({k,l,opts})=>(
+                      <div key={k}>
+                        <div style={{fontSize:10,color:C.muted,marginBottom:2}}>{l}</div>
+                        <select className="si" style={{fontSize:12,padding:"4px 6px"}}
+                          value={(physNotes.systemExam||{})[k]||""}
+                          onChange={e=>setPhysNotes(p=>({...p,systemExam:{...(p.systemExam||{}),[k]:e.target.value}}))}>
+                          <option value="">— Select —</option>
+                          {opts.map(o=><option key={o} value={o}>{o}</option>)}
+                        </select>
+                      </div>
+                    ))}
+                  </div>
+                </>}
+
+                <div style={{fontSize:11,fontWeight:700,color:C.teal700,marginBottom:4}}>Additional Findings</div>
+                <textarea className="ti" rows={2} placeholder="Additional examination findings…" value={physNotes.additionalFindings||""} onChange={e=>setPhysNotes(p=>({...p,additionalFindings:e.target.value}))} style={{resize:"vertical",fontSize:12}}/>
+              </div>
+
+              {/* WORKING DIAGNOSIS */}
+              <div className="card" style={{marginBottom:10,padding:"10px 14px"}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8,borderBottom:`1px solid ${C.divider}`,paddingBottom:4}}>
+                  <div style={{fontSize:12,fontWeight:700,color:C.teal900}}>WORKING DIAGNOSIS</div>
+                  <div style={{display:"flex",gap:6}}>
+                    {["provisional","confirmed"].map(t=>(
+                      <div key={t} onClick={()=>setPhysNotes(p=>({...p,diagnosisType:t}))}
+                        style={{padding:"3px 10px",borderRadius:6,fontSize:11,cursor:"pointer",fontWeight:600,
+                          background:(physNotes.diagnosisType||"provisional")===t?C.rust:C.bg,
+                          color:(physNotes.diagnosisType||"provisional")===t?"white":C.muted,
+                          border:`1px solid ${(physNotes.diagnosisType||"provisional")===t?C.rust:C.border}`}}>
+                        {t.charAt(0).toUpperCase()+t.slice(1)}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <select className="si" style={{marginBottom:8}} value={physNotes.workingDiagnosis||""} onChange={e=>setPhysNotes(p=>({...p,workingDiagnosis:e.target.value}))}>
+                  <option value="">— Select diagnosis —</option>
+                  {["Type 2 Diabetes","Type 1 Diabetes","Hypertension","Hypothyroidism","Hyperthyroidism","Coronary artery disease / IHD","Heart failure","Asthma","COPD","Osteoarthritis / Arthritis","Obesity / Overweight","PCOS / PCOD","Chronic kidney disease","Fatty liver / NAFLD","Anaemia","Anxiety / Depression","Migraine","Gout","Metabolic syndrome","Dyslipidaemia","Pre-diabetes / IGT","Other (specify below)"].map(d=><option key={d} value={d}>{d}</option>)}
+                </select>
+                <textarea className="ti" rows={2} placeholder="Clinical impression / additional diagnosis notes…" value={physNotes.clinicalImpression||""} onChange={e=>setPhysNotes(p=>({...p,clinicalImpression:e.target.value}))} style={{resize:"vertical",fontSize:12}}/>
+              </div>
+
+              {/* MEDICATIONS */}
+              <div className="card" style={{marginBottom:10,padding:"10px 14px"}}>
+                <div style={{fontSize:12,fontWeight:700,color:C.teal900,marginBottom:8,borderBottom:`1px solid ${C.divider}`,paddingBottom:4}}>MEDICATIONS</div>
+                <div style={{overflowX:"auto"}}>
+                  <table style={{width:"100%",borderCollapse:"collapse",fontSize:11}}>
+                    <thead>
+                      <tr style={{background:C.teal50}}>
+                        {["#","Drug (Generic / Branded)","Dose","Frequency","Duration","Route","Timing"].map(h=>(
+                          <th key={h} style={{padding:"4px 6px",textAlign:"left",color:C.teal900,fontWeight:700,whiteSpace:"nowrap",borderBottom:`1px solid ${C.border}`}}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {meds.map((m,i)=>(
+                        <tr key={i} style={{borderBottom:`1px solid ${C.divider}`}}>
+                          <td style={{padding:"3px 4px",color:C.muted,fontWeight:600}}>{i+1}</td>
+                          <td style={{padding:"3px 4px"}}>
+                            <select style={{width:"100%",fontSize:11,border:`1px solid ${C.border}`,borderRadius:4,padding:"2px 4px",background:C.bg}} value={m.drug} onChange={e=>setMedRow(i,"drug",e.target.value)}>
+                              {DRUGS.map(d=><option key={d} value={d}>{d}</option>)}
+                            </select>
+                          </td>
+                          <td style={{padding:"3px 4px"}}>
+                            <select style={{width:"100%",fontSize:11,border:`1px solid ${C.border}`,borderRadius:4,padding:"2px 4px",background:C.bg}} value={m.dose} onChange={e=>setMedRow(i,"dose",e.target.value)}>
+                              {["","0.5mg","1mg","2.5mg","5mg","10mg","20mg","25mg","40mg","50mg","75mg","100mg","150mg","200mg","250mg","300mg","400mg","500mg","600mg","1000mg","1500mcg","25mcg","50mcg","75mcg","100mcg","60000 IU"].map(d=><option key={d} value={d}>{d||"—"}</option>)}
+                            </select>
+                          </td>
+                          <td style={{padding:"3px 4px"}}>
+                            <select style={{width:"100%",fontSize:11,border:`1px solid ${C.border}`,borderRadius:4,padding:"2px 4px",background:C.bg}} value={m.frequency} onChange={e=>setMedRow(i,"frequency",e.target.value)}>
+                              {["","OD","BD","TID","QID","HS","SOS","Weekly","Alt days"].map(f=><option key={f} value={f}>{f||"—"}</option>)}
+                            </select>
+                          </td>
+                          <td style={{padding:"3px 4px"}}>
+                            <select style={{width:"100%",fontSize:11,border:`1px solid ${C.border}`,borderRadius:4,padding:"2px 4px",background:C.bg}} value={m.duration} onChange={e=>setMedRow(i,"duration",e.target.value)}>
+                              {["","3d","5d","7d","10d","2wk","1mo","3mo","6mo","Ongoing","Review"].map(d=><option key={d} value={d}>{d||"—"}</option>)}
+                            </select>
+                          </td>
+                          <td style={{padding:"3px 4px"}}>
+                            <select style={{width:"100%",fontSize:11,border:`1px solid ${C.border}`,borderRadius:4,padding:"2px 4px",background:C.bg}} value={m.route} onChange={e=>setMedRow(i,"route",e.target.value)}>
+                              {ROUTE.map(r=><option key={r} value={r}>{r}</option>)}
+                            </select>
+                          </td>
+                          <td style={{padding:"3px 4px"}}>
+                            <select style={{width:"100%",fontSize:11,border:`1px solid ${C.border}`,borderRadius:4,padding:"2px 4px",background:C.bg}} value={m.timing} onChange={e=>setMedRow(i,"timing",e.target.value)}>
+                              {TIMING.map(t=><option key={t} value={t}>{t}</option>)}
+                            </select>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                <div style={{marginTop:8}}>
+                  <div style={{fontSize:11,fontWeight:700,color:C.teal700,marginBottom:4}}>Additional / Unlisted Medicines</div>
+                  <textarea className="ti" rows={3} placeholder="Write any additional medicines not in the list above…" value={physNotes.additionalMeds||""} onChange={e=>setPhysNotes(p=>({...p,additionalMeds:e.target.value}))} style={{resize:"vertical",fontSize:12}}/>
+                </div>
+              </div>
+
+              {/* INVESTIGATIONS */}
+              <div className="card" style={{marginBottom:10,padding:"10px 14px"}}>
+                <div style={{fontSize:12,fontWeight:700,color:C.teal900,marginBottom:8,borderBottom:`1px solid ${C.divider}`,paddingBottom:4}}>INVESTIGATIONS</div>
+                <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:8}}>
+                  {["CBC","Blood Sugar F/PP","HbA1c","Lipid Profile","LFT","RFT / Creatinine","Thyroid (TSH)","ECG","2D Echo","Chest X-Ray","USG Abdomen","Vitamin D","Vitamin B12","Urine R/M","BMD","PSA","Pap smear","Mammogram"].map(inv=>{
+                    const on=(physNotes.investigations||[]).includes(inv);
+                    return(
+                      <div key={inv} onClick={()=>setPhysNotes(p=>{const a=p.investigations||[];return{...p,investigations:on?a.filter(x=>x!==inv):[...a,inv]};})}
+                        style={{padding:"4px 10px",borderRadius:16,border:`1.5px solid ${on?C.teal700:C.border}`,background:on?C.teal50:C.bg,cursor:"pointer",fontSize:11,color:on?C.teal900:C.text,fontWeight:on?700:400}}>
+                        {on?"✓ ":""}{inv}
+                      </div>
+                    );
+                  })}
+                </div>
+                <div style={{fontSize:11,fontWeight:700,color:C.teal700,marginBottom:4}}>Other Investigations</div>
+                <textarea className="ti" rows={2} placeholder="Any other investigations not listed above…" value={physNotes.additionalInvestigations||""} onChange={e=>setPhysNotes(p=>({...p,additionalInvestigations:e.target.value}))} style={{resize:"vertical",fontSize:12}}/>
+              </div>
+
+              {/* ADVICE */}
+              <div className="card" style={{marginBottom:10,padding:"10px 14px"}}>
+                <div style={{fontSize:12,fontWeight:700,color:C.teal900,marginBottom:8,borderBottom:`1px solid ${C.divider}`,paddingBottom:4}}>ADVICE TO PATIENT</div>
+                <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:8}}>
+                  {ADVICE_OPTS.map(adv=>{
+                    const on=(physNotes.advice||[]).includes(adv);
+                    return(
+                      <div key={adv} onClick={()=>toggleAdv(adv)}
+                        style={{padding:"4px 10px",borderRadius:16,border:`1.5px solid ${on?C.lime:C.border}`,background:on?C.limeLt:C.bg,cursor:"pointer",fontSize:11,color:on?C.teal900:C.text,fontWeight:on?700:400}}>
+                        {on?"✓ ":""}{adv}
+                      </div>
+                    );
+                  })}
+                </div>
+                <textarea className="ti" rows={2} placeholder="Additional advice…" value={physNotes.additionalAdvice||""} onChange={e=>setPhysNotes(p=>({...p,additionalAdvice:e.target.value}))} style={{resize:"vertical",fontSize:12}}/>
+              </div>
+
+              {/* FOLLOW-UP & NOTES */}
+              <div className="card" style={{marginBottom:10,padding:"10px 14px"}}>
+                <div style={{fontSize:12,fontWeight:700,color:C.teal900,marginBottom:8,borderBottom:`1px solid ${C.divider}`,paddingBottom:4}}>FOLLOW-UP & NOTES</div>
+                <div className="r2 fg" style={{marginBottom:8}}>
+                  <div><div className="fl">Follow-up</div>
+                    <select className="si" value={physNotes.followUp||""} onChange={e=>setPhysNotes(p=>({...p,followUp:e.target.value}))}>
+                      <option value="">Select…</option>
+                      {["1 week","2 weeks","4 weeks","6 weeks","3 months","6 months"].map(f=><option key={f} value={f}>{f}</option>)}
+                    </select>
+                  </div>
+                  <div><div className="fl">Lifestyle Risk (from Lifestyle Rx)</div>
+                    <div style={{padding:"8px 12px",borderRadius:8,background:C.teal50,fontSize:13,fontWeight:600}}>{viewRec.rx?.riskCategory||"—"}</div>
+                  </div>
+                </div>
+                <div className="fl" style={{marginBottom:4}}>Physician Notes</div>
+                <textarea className="ti" rows={4} placeholder="Clinical observations, referrals, special instructions…" value={physNotes.notes||""} onChange={e=>setPhysNotes(p=>({...p,notes:e.target.value}))} style={{resize:"vertical",fontSize:12}}/>
+              </div>
+
+              {/* SIGNATURE */}
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end",marginTop:8,paddingTop:10,borderTop:`1px solid ${C.border}`,fontSize:11,color:C.muted}}>
+                <div>Jayadev Memorial Rashtrotthana Hospital & Research Centre, Bengaluru</div>
+                <div style={{textAlign:"right"}}>
+                  <div style={{borderTop:"1px solid #999",width:160,marginBottom:4}}/>
+                  <div style={{fontWeight:600,color:C.text}}>{user.name}</div>
+                  <div>{user.specialty}</div>
+                  {physNotes.savedAt&&<div style={{fontSize:10,marginTop:2}}>Saved: {fmtDate(physNotes.savedAt)}</div>}
+                </div>
+              </div>
+
+            </div>{/* end print-opd */}
+
+            {/* Save button at bottom */}
+            <div className="no-print" style={{display:"flex",gap:10,marginTop:16,paddingBottom:24}}>
+              <button className="btn btn-lime" style={{flex:1,justifyContent:"center",padding:"13px"}} onClick={savePhysicianNotes}>💾 Save Case Sheet</button>
+              <button className="btn btn-rust" style={{flex:1,justifyContent:"center",padding:"13px"}} onClick={printOpd}>🖨 Print OPD Sheet</button>
             </div>
           </div>}
+
         </div>
       </>
     );
   }
+
 
   /* ── DOCTOR PORTAL ── */
   if(user.role==="doctor"){
