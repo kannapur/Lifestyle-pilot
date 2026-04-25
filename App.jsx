@@ -437,14 +437,31 @@ body{background:${C.bg};font-family:'DM Sans',sans-serif;color:${C.text};-webkit
 
 /* PRINT */
 @media print{
+  body,html{height:auto!important;overflow:visible!important;}
   body *{visibility:hidden;}
   body[data-print="rx"] #print-rx,body[data-print="rx"] #print-rx *{visibility:visible;}
-  body[data-print="rx"] #print-rx{position:fixed;top:0;left:0;width:100%;background:white;padding:20px 28px;}
+  body[data-print="rx"] #print-rx{
+    position:absolute;top:0;left:0;width:100%;background:white;
+    padding:16px 24px;overflow:visible!important;height:auto!important;
+  }
   body[data-print="opd"] #print-opd,body[data-print="opd"] #print-opd *{visibility:visible;}
-  body[data-print="opd"] #print-opd{position:fixed;top:0;left:0;width:100%;background:white;padding:20px 28px;}
+  body[data-print="opd"] #print-opd{
+    position:absolute;top:0;left:0;width:100%;background:white;
+    padding:16px 24px;overflow:visible!important;height:auto!important;
+  }
+  #print-opd .card{
+    page-break-inside:avoid;
+    break-inside:avoid;
+    border:1px solid #ccc!important;
+    box-shadow:none!important;
+    margin-bottom:10px!important;
+  }
+  #print-opd table{page-break-inside:avoid;break-inside:avoid;}
+  #print-opd .sec-hdr{page-break-after:avoid;break-after:avoid;}
   .no-print{display:none!important;}
+  .print-only{display:block!important;}
   .rx-wrap{border:1px solid #ccc!important;}
-  @page{margin:10mm 12mm;}
+  @page{margin:10mm 12mm;size:A4;}
 }
 /* MOBILE */
 @media(max-width:600px){
@@ -1281,6 +1298,49 @@ export default function App() {
       setPhysNotesSaved(true);setTimeout(()=>setPhysNotesSaved(false),2500);
       setPhysNotes(p=>({...p,savedAt:new Date().toISOString()}));
     }catch(_){}
+  };
+
+  /* Open a pending appointment directly as a physician case sheet,
+     without waiting for the lifestyle doctor to complete their Rx.
+     Creates a lightweight rx: record from the appointment data.     */
+  const openPendingAppt=async(appt)=>{
+    const recId=`rx:${appt.code}`;
+    // Check if a partial record already exists (e.g. physician saved earlier)
+    let existing=null;
+    try{const s=await storage.get(recId);if(s)existing=JSON.parse(s.value);}catch(_){}
+    if(existing){
+      setViewRec(existing);
+      setPhysNotes(existing.physicianNotes||BLANK_PHY_NOTES());
+      return;
+    }
+    // Build synthetic record from appointment
+    const rec={
+      id:recId,
+      savedAt:appt.createdAt||new Date().toISOString(),
+      apptData:appt,
+      patient:{
+        name:appt.patientName||"",
+        uhid:appt.patientUhid||"",
+        age:appt.age||appt.patientDemographics?.age||"",
+        gender:appt.gender||appt.patientDemographics?.gender||"",
+        mobile:appt.mobile||"",
+        email:appt.email||"",
+        address:appt.address||"",
+        diagnosis:appt.primarySpecialty||"",
+        chiefComplaint:appt.chiefComplaint||"",
+        pastHistory:"", medications:"", allergies:"", height:"", weight:"",
+        bloodGroup:"", familyHistory:"",
+      },
+      rx:null,  // lifestyle Rx not yet done
+      physicianNotes:BLANK_PHY_NOTES(),
+      _pendingLifestyle:true,  // flag so UI can show a notice
+    };
+    // Persist so the record appears in archive on next load
+    try{await storage.set(recId,JSON.stringify(rec));}catch(_){}
+    setAllArchive(prev=>[rec,...prev.filter(r=>r.id!==recId)]);
+    setArchive(prev=>[rec,...prev.filter(r=>r.id!==recId)]);
+    setViewRec(rec);
+    setPhysNotes(BLANK_PHY_NOTES());
   };
   /* ── FORM SAVE + AI ── */
   const resetForm=()=>{
@@ -2460,7 +2520,10 @@ Jayadev Memorial Rashtrotthana Hospital & Research Centre`
                     <span>⏳</span> Awaiting Lifestyle Consultation ({pendingAppts.length})
                   </div>
                   {pendingAppts.map((a,i)=>(
-                    <div key={i} style={{background:C.warnLt,border:`1.5px solid #FDE68A`,borderRadius:12,padding:"12px 16px",marginBottom:8,display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:8}}>
+                    <div key={i} onClick={()=>openPendingAppt(a)}
+                      style={{background:C.warnLt,border:`1.5px solid #FDE68A`,borderRadius:12,padding:"12px 16px",marginBottom:8,display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:8,cursor:"pointer",transition:"box-shadow 0.18s"}}
+                      onMouseEnter={e=>e.currentTarget.style.boxShadow="0 4px 16px rgba(0,0,0,0.1)"}
+                      onMouseLeave={e=>e.currentTarget.style.boxShadow="none"}>
                       <div>
                         <div style={{fontWeight:700,fontSize:14,color:C.text}}>{a.patientName}</div>
                         <div style={{fontSize:11,color:C.muted,marginTop:2}}>
@@ -2480,7 +2543,9 @@ Jayadev Memorial Rashtrotthana Hospital & Research Centre`
                       <div style={{fontSize:11,color:C.muted,textAlign:"right"}}>
                         <div>Lifestyle Dr:</div>
                         <div style={{fontWeight:600,color:C.teal700}}>{a.lifestyleDoctorName||"—"}</div>
-                        <div style={{marginTop:4,padding:"3px 10px",background:C.warnLt,border:`1px solid #FDE68A`,borderRadius:10,fontSize:10,color:C.warn,fontWeight:600}}>Lifestyle Rx Pending</div>
+                        <div style={{marginTop:4,padding:"4px 12px",background:C.teal700,borderRadius:10,fontSize:11,color:"white",fontWeight:600,cursor:"pointer"}}>
+                          Open Case Sheet →
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -2528,6 +2593,15 @@ Jayadev Memorial Rashtrotthana Hospital & Research Centre`
                 <button className="btn btn-rust" onClick={printOpd}>🖨 Print</button>
               </div>
             </div>
+
+            {/* Lifestyle-pending notice */}
+            {viewRec._pendingLifestyle&&!viewRec.rx&&<div className="no-print" style={{background:"#FFFBEB",border:"1.5px solid #FDE68A",borderRadius:10,padding:"10px 16px",marginBottom:12,display:"flex",alignItems:"center",gap:10}}>
+              <span style={{fontSize:18}}>⏳</span>
+              <div>
+                <div style={{fontSize:13,fontWeight:700,color:"#92400E"}}>Lifestyle consultation not yet completed</div>
+                <div style={{fontSize:11,color:"#78350F",marginTop:2}}>You can fill and save your OPD notes now. Once the lifestyle doctor completes their Rx, it will appear on this record automatically.</div>
+              </div>
+            </div>}
 
             {/* ══ PRINT TARGET ══ */}
             <div id="print-opd">
