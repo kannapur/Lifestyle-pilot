@@ -802,6 +802,7 @@ export default function App() {
     if(!doc) { setAuthErr("Incorrect credentials. Check your Doctor ID and password."); return; }
     setUser({id:doc.id, name:doc.name, role:"physician", specialty:doc.specialty});
   };
+  const loginPatient=async()=>{
     setAuthErr("");
     const code = ptCode.toUpperCase().trim();
     // Try appointment code
@@ -2280,6 +2281,7 @@ Jayadev Memorial Rashtrotthana Hospital & Research Centre`
               <button className="btn btn-ghost" style={{color:C.danger,borderColor:C.danger}} onClick={async()=>{if(window.confirm("Delete?"))try{await storage.delete(viewRec.id);await loadData();setViewRec(null);setTab("archive");}catch(_){}}}>🗑</button>
             </div>
             <RxView data={viewRec.rx} pt={viewRec.patient} doctorName={viewRec.doctorName}/>
+          </div>}
 
           {tab==="review"&&editedRx&&<div className="page fade">
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16,flexWrap:"wrap",gap:10}}>
