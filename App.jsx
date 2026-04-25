@@ -106,7 +106,7 @@ const SEED_DOCTORS = [
   {id:"DR002",name:"Dr. Priya Menon",specialty:"General Medicine & Lifestyle",dept:"Lifestyle Medicine",type:"lifestyle",password:"jmrh002"},
   {id:"DR003",name:"Dr. Karthik Rao",specialty:"Internal Medicine & Lifestyle",dept:"Lifestyle Medicine",type:"lifestyle",password:"jmrh003"},
   {id:"DR004",name:"Dr. Suma Nair",specialty:"Ayurveda & Lifestyle",dept:"Lifestyle Medicine",type:"lifestyle",password:"jmrh004"},
-  // Primary consultants — can log in to view lifestyle prescriptions for their referred patients
+  // Primary consultants — can log in to view lifestyle prescriptions
   {id:"PC001",name:"Dr. Ramesh Babu",specialty:"Cardiology",dept:"Cardiology",type:"primary",password:"jmrh@pc01"},
   {id:"PC002",name:"Dr. Kavitha Sharma",specialty:"Endocrinology",dept:"Endocrinology",type:"primary",password:"jmrh@pc02"},
   {id:"PC003",name:"Dr. Suresh Nair",specialty:"General Medicine",dept:"Medicine",type:"primary",password:"jmrh@pc03"},
@@ -455,9 +455,8 @@ body{background:${C.bg};font-family:'DM Sans',sans-serif;color:${C.text};-webkit
   .prog-dots,.nav-r .ntab{display:none;}
   .role-grid{grid-template-columns:1fr;}
   .tbl thead{display:none;}
-  .tbl tr{display:block;border:1px solid ${C.border};border-radius:10px;margin-bottom:10px;padding:10px 12px;background:${C.card};}
+  .tbl tr{display:block;border:1px solid #C5DDE3;border-radius:10px;margin-bottom:10px;padding:10px 12px;background:#FFFFFF;}
   .tbl td{display:flex;justify-content:space-between;align-items:flex-start;padding:4px 0;border:none;font-size:13px;}
-  .tbl td:before{content:attr(data-label);font-size:11px;color:${C.muted};font-weight:600;margin-right:8px;white-space:nowrap;}
 }
 `;
 
@@ -552,88 +551,6 @@ const RxView=({data,pt,doctorName})=>(
 );
 
 /* ═══════════════════════════════════════════════════════════
-   OPD CONSULTANT NOTES SHEET
-═══════════════════════════════════════════════════════════ */
-const OpdSheet=({rec,notes,physicianName,specialty})=>{
-  const pt=rec?.patient||{};
-  const appt=rec?.apptData||{};
-  return(
-    <div id="print-opd" style={{background:"white",padding:"20px 28px",fontFamily:"sans-serif"}}>
-      {/* Header */}
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:12}}>
-        <img src={LOGO_HORIZONTAL} alt="JMRH" style={{height:48,width:"auto"}}/>
-        <div style={{textAlign:"right"}}>
-          <div style={{fontSize:13,fontWeight:700,color:C.teal700}}>OPD Consultation Notes</div>
-          <div style={{fontSize:11,color:C.muted}}>Primary Physician — Confidential</div>
-        </div>
-      </div>
-      <div style={{borderTop:`2px solid ${C.teal700}`,marginBottom:14}}/>
-
-      {/* Patient summary */}
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,background:C.teal50,borderRadius:8,padding:"10px 14px",marginBottom:14,fontSize:12}}>
-        <div><strong>Patient:</strong> {pt.name}</div>
-        <div><strong>UHID:</strong> {pt.uhid}</div>
-        <div><strong>Age / Gender:</strong> {pt.age}yr · {pt.gender}</div>
-        <div><strong>Date:</strong> {new Date().toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"})}</div>
-        <div><strong>Referring Specialty:</strong> {appt.primarySpecialty||"—"}</div>
-        <div><strong>Consultant:</strong> {physicianName}</div>
-        <div style={{gridColumn:"span 2"}}><strong>Chief Complaint:</strong> {pt.chiefComplaint||appt.chiefComplaint||"—"}</div>
-      </div>
-
-      {/* Diagnosis */}
-      <div style={{marginBottom:12}}>
-        <div style={{fontSize:11,fontWeight:700,color:C.teal700,textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Diagnosis</div>
-        <div style={{minHeight:32,borderBottom:`1px solid ${C.border}`,fontSize:13,paddingBottom:4}}>{notes.diagnosis||""}</div>
-      </div>
-
-      {/* Investigations */}
-      {notes.investigations?.length>0&&<div style={{marginBottom:12}}>
-        <div style={{fontSize:11,fontWeight:700,color:C.teal700,textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>Investigations Advised</div>
-        <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
-          {notes.investigations.map(inv=>(
-            <span key={inv} style={{background:C.teal50,border:`1px solid ${C.teal400}`,borderRadius:6,padding:"3px 10px",fontSize:12}}>{inv}</span>
-          ))}
-        </div>
-      </div>}
-
-      {/* Medications */}
-      <div style={{marginBottom:12}}>
-        <div style={{fontSize:11,fontWeight:700,color:C.teal700,textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Medications / Rx</div>
-        <div style={{minHeight:48,borderBottom:`1px solid ${C.border}`,fontSize:13,whiteSpace:"pre-wrap",paddingBottom:4}}>{notes.medications||""}</div>
-      </div>
-
-      {/* Physician Notes */}
-      <div style={{marginBottom:12}}>
-        <div style={{fontSize:11,fontWeight:700,color:C.teal700,textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Physician Notes</div>
-        <div style={{minHeight:56,borderBottom:`1px solid ${C.border}`,fontSize:13,whiteSpace:"pre-wrap",paddingBottom:4}}>{notes.notes||""}</div>
-      </div>
-
-      {/* Follow-up + Lifestyle risk */}
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:16}}>
-        <div>
-          <div style={{fontSize:11,fontWeight:700,color:C.teal700,textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Follow-up</div>
-          <div style={{fontSize:14,fontWeight:600}}>{notes.followUp||"—"}</div>
-        </div>
-        <div>
-          <div style={{fontSize:11,fontWeight:700,color:C.teal700,textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Lifestyle Risk (from Lifestyle Rx)</div>
-          <div style={{fontSize:14,fontWeight:600}}>{rec?.rx?.riskCategory||"—"}</div>
-        </div>
-      </div>
-
-      {/* Signature */}
-      <div style={{borderTop:`1px solid ${C.border}`,paddingTop:14,display:"flex",justifyContent:"space-between",fontSize:11,color:C.muted}}>
-        <div>Jayadev Memorial Rashtrotthana Hospital & Research Centre, Bengaluru</div>
-        <div style={{textAlign:"right"}}>
-          <div style={{borderTop:"1px solid #999",width:160,marginBottom:4}}/>
-          <div>{physicianName}</div>
-          <div>{specialty}</div>
-        </div>
-      </div>
-    </div>
-  );
-};
-
-/* ═══════════════════════════════════════════════════════════
    MAIN APP
 ═══════════════════════════════════════════════════════════ */
 export default function App() {
@@ -664,7 +581,6 @@ export default function App() {
 
   const printRx=()=>{document.body.setAttribute("data-print","rx");window.print();setTimeout(()=>document.body.removeAttribute("data-print"),500);};
   const printOpd=()=>{document.body.setAttribute("data-print","opd");window.print();setTimeout(()=>document.body.removeAttribute("data-print"),500);};
-
   // Form
   const ea=(v)=>Array.isArray(v)?v:[];  // ensureArray — guards against storage returning non-arrays
   const blankPt=()=>({name:"",age:"",gender:"",dob:"",bloodGroup:"",uhid:"",mobile:"",email:"",address:"",city:"",pincode:"",occupation:"",date:new Date().toISOString().split("T")[0],diagnosis:"",pastHistory:"",chiefComplaint:"",medications:"",allergies:"",height:"",weight:"",familyHistory:""});
@@ -692,14 +608,13 @@ export default function App() {
   const [patientAppt,setPatientAppt]=useState(null); // appointment patient is filling
   const [ptFormSaved,setPtFormSaved]=useState(false);
 
-  // New doctor form
-  const [newDoc,setNewDoc]=useState({id:"",name:"",specialty:"",dept:"",type:"primary",password:""});
-  const [addDocErr,setAddDocErr]=useState("");
-
-  // Physician OPD notes form
+  // Physician OPD notes
   const BLANK_PHY_NOTES=()=>({diagnosis:"",investigations:[],medications:"",followUp:"",notes:""});
   const [physNotes,setPhysNotes]=useState(BLANK_PHY_NOTES());
   const [physNotesSaved,setPhysNotesSaved]=useState(false);
+  // New doctor form
+  const [newDoc,setNewDoc]=useState({id:"",name:"",specialty:"",dept:"",type:"primary",password:""});
+  const [addDocErr,setAddDocErr]=useState("");
 
   useEffect(()=>{
     initStorage();
@@ -720,13 +635,9 @@ export default function App() {
       setDoctors(SEED_DOCTORS);
     } else {
       const parsed = JSON.parse(storedDocs.value);
-      // Migrate: add type field if missing, and add passwords to primary consultants if missing
-      const needsMigration = parsed.some(d=>!d.type || (d.type==="primary" && !d.password));
+      const needsMigration = parsed.some(d=>!d.type||(d.type==="primary"&&!d.password));
       if(needsMigration) {
-        const migrated = parsed.map(d=>{
-          const seed = SEED_DOCTORS.find(s=>s.id===d.id);
-          return {...d, type: d.type || (d.password?"lifestyle":"primary"), password: d.password || seed?.password || ""};
-        });
+        const migrated = parsed.map(d=>{const seed=SEED_DOCTORS.find(s=>s.id===d.id);return{...d,type:d.type||(d.password?"lifestyle":"primary"),password:d.password||seed?.password||""};});
         try { await storage.set("doctors",JSON.stringify(migrated)); } catch(_) {}
         setDoctors(migrated);
       } else {
@@ -793,14 +704,11 @@ export default function App() {
   };
   const loginPhysician=async()=>{
     setAuthErr("");
-    let docs = [...SEED_DOCTORS];
-    try {
-      const stored = await storage.get("doctors");
-      if(stored) docs = JSON.parse(stored.value);
-    } catch(_) {}
-    const doc = docs.find(d => d.id === selDoc && d.type === "primary" && d.password === pwd);
-    if(!doc) { setAuthErr("Incorrect credentials. Check your Doctor ID and password."); return; }
-    setUser({id:doc.id, name:doc.name, role:"physician", specialty:doc.specialty});
+    let docs=[...SEED_DOCTORS];
+    try{const stored=await storage.get("doctors");if(stored)docs=JSON.parse(stored.value);}catch(_){}
+    const doc=docs.find(d=>d.id===selDoc&&d.type==="primary"&&d.password===pwd);
+    if(!doc){setAuthErr("Incorrect credentials.");return;}
+    setUser({id:doc.id,name:doc.name,role:"physician",specialty:doc.specialty});
   };
   const loginPatient=async()=>{
     setAuthErr("");
@@ -846,15 +754,9 @@ export default function App() {
     if(!newAppt.patientName||!newAppt.mobile){
       setErr("Patient name and mobile are required.");return;
     }
-    if(newAppt.visitType==="specialist"&&!newAppt.primarySpecialty){
-      setErr("Please select a specialty for specialist appointment.");return;
-    }
-    if(newAppt.visitType==="specialist"&&!newAppt.primaryDoctorId){
-      setErr("Please assign a primary consultant before registering.");return;
-    }
-    if(!newAppt.lifestyleDoctorId){
-      setErr("Please assign a lifestyle doctor before registering.");return;
-    }
+    if(newAppt.visitType==="specialist"&&!newAppt.primarySpecialty){setErr("Please select a specialty.");return;}
+    if(newAppt.visitType==="specialist"&&!newAppt.primaryDoctorId){setErr("Please assign a primary consultant before registering.");return;}
+    if(!newAppt.lifestyleDoctorId){setErr("Please assign a lifestyle doctor before registering.");return;}
     const code=genCode();
     const uhid=newAppt.patientUhid||`RH-${Date.now().toString().slice(-5)}`;
     const primaryDoc = doctors.find(d=>d.id===newAppt.primaryDoctorId);
@@ -906,7 +808,6 @@ export default function App() {
     }catch(_){}
   };
 
-  /* ── PHYSICIAN NOTES ── */
   const savePhysicianNotes=async()=>{
     if(!viewRec)return;
     const updated={...viewRec,physicianNotes:physNotes};
@@ -915,11 +816,9 @@ export default function App() {
       setViewRec(updated);
       setAllArchive(prev=>prev.map(r=>r.id===viewRec.id?updated:r));
       setArchive(prev=>prev.map(r=>r.id===viewRec.id?updated:r));
-      setPhysNotesSaved(true);
-      setTimeout(()=>setPhysNotesSaved(false),2500);
+      setPhysNotesSaved(true);setTimeout(()=>setPhysNotesSaved(false),2500);
     }catch(_){}
   };
-
   /* ── FORM SAVE + AI ── */
   const resetForm=()=>{
     setPatient(blankPt());setStep(0);
@@ -1190,7 +1089,6 @@ Respond ONLY with a single raw JSON object. No markdown. No explanation. Strict 
               <button className="btn btn-teal btn-full" onClick={loginPhysician} disabled={!selDoc||!pwd}>Sign In →</button>
               <div className="auth-note" style={{marginTop:12}}>Demo: PC001 → jmrh@pc01</div>
             </>}
-
             {authRole==="patient"&&<>
               <div className="auth-h">Patient Login</div>
               <div className="auth-sub">Enter the appointment code sent to your mobile, or your UHID</div>
@@ -2018,13 +1916,12 @@ Jayadev Memorial Rashtrotthana Hospital & Research Centre`
     return null;
   };
 
+
   /* ── PRIMARY PHYSICIAN PORTAL ── */
   if(user.role==="physician"){
-    const physRecs=archive; // already filtered by primaryDoctorId in loadData
     return(
       <>
         <style>{G}</style>
-        <Modal/>
         <div style={{background:C.bg,minHeight:"100vh"}}>
           <div className="nav no-print">
             <HospLogo variant="nav"/>
@@ -2034,8 +1931,6 @@ Jayadev Memorial Rashtrotthana Hospital & Research Centre`
               <button className="nbtn" onClick={()=>{setUser(null);setArchive([]);setViewRec(null);}}>Sign Out</button>
             </div>
           </div>
-
-          {/* LIST VIEW */}
           {!viewRec&&<div className="page fade">
             <div style={{marginBottom:20}}>
               <div style={{fontSize:13,color:C.muted}}>Lifestyle prescriptions for your referred patients</div>
@@ -2043,112 +1938,71 @@ Jayadev Memorial Rashtrotthana Hospital & Research Centre`
               <div style={{fontSize:12,color:C.muted,marginTop:2}}>{user.specialty}</div>
             </div>
             <div className="stats-row">
-              <div className="stat-box"><div className="stat-num">{physRecs.length}</div><div className="stat-label">Consultations</div></div>
-              <div className="stat-box"><div className="stat-num" style={{color:C.danger}}>{physRecs.filter(r=>r.rx?.riskCategory==="High").length}</div><div className="stat-label">High Risk</div></div>
-              <div className="stat-box"><div className="stat-num" style={{color:C.warn}}>{physRecs.filter(r=>r.rx?.riskCategory==="Moderate").length}</div><div className="stat-label">Moderate</div></div>
-              <div className="stat-box"><div className="stat-num" style={{color:C.success}}>{physRecs.filter(r=>r.rx?.riskCategory==="Low").length}</div><div className="stat-label">Low Risk</div></div>
+              <div className="stat-box"><div className="stat-num">{archive.length}</div><div className="stat-label">Consultations</div></div>
+              <div className="stat-box"><div className="stat-num" style={{color:C.danger}}>{archive.filter(r=>r.rx?.riskCategory==="High").length}</div><div className="stat-label">High Risk</div></div>
+              <div className="stat-box"><div className="stat-num" style={{color:C.warn}}>{archive.filter(r=>r.rx?.riskCategory==="Moderate").length}</div><div className="stat-label">Moderate</div></div>
+              <div className="stat-box"><div className="stat-num" style={{color:C.success}}>{archive.filter(r=>r.rx?.riskCategory==="Low").length}</div><div className="stat-label">Low Risk</div></div>
             </div>
-            {physRecs.length===0
+            {archive.length===0
               ?<div className="card" style={{textAlign:"center",padding:"48px 20px",color:C.muted}}>
                 <div style={{fontSize:36,marginBottom:10}}>📋</div>
                 <div style={{fontSize:16,fontWeight:600,marginBottom:4}}>No lifestyle consultations yet</div>
-                <div style={{fontSize:13}}>Consultations for your referred patients will appear here once completed by the Lifestyle Medicine team.</div>
+                <div style={{fontSize:13}}>Consultations for your referred patients will appear here once completed.</div>
               </div>
-              :<>
-                <div className="arch-bar">
-                  <input className="arch-search" placeholder="Search by name or UHID…" value={search} onChange={e=>setSearch(e.target.value)}/>
-                </div>
-                <div className="arch-grid">
-                  {physRecs.filter(r=>{const q=search.toLowerCase();return !q||r.patient?.name?.toLowerCase().includes(q)||r.patient?.uhid?.toLowerCase().includes(q);}).map((r,i)=>(
-                    <div key={i} className="arch-card" onClick={()=>{setViewRec(r);setPhysNotes(r.physicianNotes||BLANK_PHY_NOTES());}} style={{cursor:"pointer"}}>
-                      <div className="arch-name">{r.patient?.name}</div>
-                      <div className="arch-diag">{r.patient?.diagnosis||"—"}</div>
-                      <div className="arch-meta">
-                        <div className="arch-date">{fmtDate(r.savedAt)}</div>
-                        {r.rx?.riskCategory&&<span className={`risk-badge ${riskClass(r.rx.riskCategory)}`}>{r.rx.riskCategory}</span>}
-                      </div>
-                      <div style={{fontSize:11,color:C.muted,marginTop:5}}>UHID: {r.patient?.uhid} · {r.patient?.age}yr · {r.patient?.gender}</div>
-                      <div style={{fontSize:11,color:C.teal700,marginTop:4}}>🌿 {r.doctorName?.split(" ").slice(0,3).join(" ")}</div>
-                      {r.physicianNotes?.diagnosis&&<div style={{fontSize:10,color:C.success,marginTop:3}}>✓ Notes saved</div>}
+              :<div className="arch-grid">
+                {archive.filter(r=>{const q=search.toLowerCase();return !q||r.patient?.name?.toLowerCase().includes(q)||r.patient?.uhid?.toLowerCase().includes(q);}).map((r,i)=>(
+                  <div key={i} className="arch-card" onClick={()=>{setViewRec(r);setPhysNotes(r.physicianNotes||BLANK_PHY_NOTES());}} style={{cursor:"pointer"}}>
+                    <div className="arch-name">{r.patient?.name}</div>
+                    <div className="arch-diag">{r.patient?.diagnosis||"—"}</div>
+                    <div className="arch-meta">
+                      <div className="arch-date">{fmtDate(r.savedAt)}</div>
+                      {r.rx?.riskCategory&&<span className={`risk-badge ${riskClass(r.rx.riskCategory)}`}>{r.rx.riskCategory}</span>}
                     </div>
-                  ))}
-                </div>
-              </>
+                    <div style={{fontSize:11,color:C.muted,marginTop:5}}>UHID: {r.patient?.uhid} · {r.patient?.age}yr · {r.patient?.gender}</div>
+                    {r.physicianNotes?.diagnosis&&<div style={{fontSize:10,color:C.success,marginTop:3}}>✓ Notes saved</div>}
+                  </div>
+                ))}
+              </div>
             }
           </div>}
-
-          {/* DETAIL VIEW — OPD Notes only (no lifestyle Rx visible here) */}
           {viewRec&&<div className="page fade">
             <div className="nav-row no-print" style={{marginBottom:16}}>
               <button className="btn btn-ghost" onClick={()=>{setViewRec(null);setPhysNotesSaved(false);}}>← Back</button>
               <button className="btn btn-rust" onClick={printOpd}>🖨 Print OPD Sheet</button>
             </div>
-
-            {/* OPD Notes Sheet — rendered for both screen and print */}
-            <OpdSheet rec={viewRec} notes={physNotes} physicianName={user.name} specialty={user.specialty}/>
-
-            {/* CONSULTANT NOTES FORM — screen only */}
-            <div className="card no-print" style={{marginTop:24,borderColor:C.teal400}}>
-              <div style={{fontFamily:"'Playfair Display',serif",fontSize:18,color:C.teal900,marginBottom:4}}>📝 Consultant Notes</div>
-              <div style={{fontSize:12,color:C.muted,marginBottom:16}}>Fill in your notes below — click Save, then Print OPD Sheet</div>
-
-              {/* Diagnosis */}
-              <div className="fg"><div className="fl">Diagnosis</div>
-                <input className="ti" placeholder="Enter your clinical diagnosis…" value={physNotes.diagnosis}
-                  onChange={e=>setPhysNotes({...physNotes,diagnosis:e.target.value})}/>
+            <div id="print-opd" style={{background:"white",padding:"16px 20px"}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:12}}>
+                <img src={LOGO_HORIZONTAL} alt="JMRH" style={{height:44,width:"auto"}}/>
+                <div style={{textAlign:"right"}}><div style={{fontSize:13,fontWeight:700,color:C.teal700}}>OPD Consultation Notes</div><div style={{fontSize:11,color:C.muted}}>Primary Physician</div></div>
               </div>
-
-              {/* Investigations */}
-              <div className="fg">
-                <div className="fl">Investigations Advised</div>
-                <div style={{display:"flex",flexWrap:"wrap",gap:6,marginTop:4}}>
-                  {INVESTIGATION_OPTS.map(inv=>{
-                    const on=(physNotes.investigations||[]).includes(inv);
-                    return(
-                      <div key={inv} onClick={()=>{
-                        const arr=physNotes.investigations||[];
-                        setPhysNotes({...physNotes,investigations:on?arr.filter(x=>x!==inv):[...arr,inv]});
-                      }} style={{padding:"5px 12px",borderRadius:20,border:`1.5px solid ${on?C.teal700:C.border}`,
-                        background:on?C.teal50:C.bg,cursor:"pointer",fontSize:12,color:on?C.teal900:C.text,
-                        fontWeight:on?600:400,transition:"all 0.15s"}}>
-                        {on?"✓ ":""}{inv}
-                      </div>
-                    );
-                  })}
-                </div>
+              <div style={{borderTop:`2px solid ${C.teal700}`,marginBottom:12}}/>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,background:C.teal50,borderRadius:8,padding:"10px 14px",marginBottom:12,fontSize:12}}>
+                <div><strong>Patient:</strong> {viewRec.patient?.name}</div>
+                <div><strong>UHID:</strong> {viewRec.patient?.uhid}</div>
+                <div><strong>Age/Gender:</strong> {viewRec.patient?.age}yr · {viewRec.patient?.gender}</div>
+                <div><strong>Date:</strong> {new Date().toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"})}</div>
+                <div><strong>Specialty:</strong> {viewRec.apptData?.primarySpecialty||"—"}</div>
+                <div><strong>Consultant:</strong> {user.name}</div>
+                <div style={{gridColumn:"span 2"}}><strong>Complaint:</strong> {viewRec.patient?.chiefComplaint||viewRec.apptData?.chiefComplaint||"—"}</div>
               </div>
-
-              {/* Medications */}
-              <div className="fg"><div className="fl">Medications / Rx</div>
-                <textarea className="ti" rows={4} placeholder="List medications, doses, frequency…"
-                  value={physNotes.medications} onChange={e=>setPhysNotes({...physNotes,medications:e.target.value})}
-                  style={{resize:"vertical"}}/>
-              </div>
-
-              {/* Physician Notes — free text */}
-              <div className="fg"><div className="fl">Physician Notes</div>
-                <textarea className="ti" rows={4}
-                  placeholder="Clinical observations, lifestyle integration notes, referrals, special instructions…"
-                  value={physNotes.notes} onChange={e=>setPhysNotes({...physNotes,notes:e.target.value})}
-                  style={{resize:"vertical"}}/>
-              </div>
-
-              {/* Follow-up */}
-              <div className="fg"><div className="fl">Follow-up</div>
-                <select className="si" value={physNotes.followUp} onChange={e=>setPhysNotes({...physNotes,followUp:e.target.value})}>
-                  <option value="">Select follow-up interval…</option>
-                  {FOLLOWUP_OPTS.map(f=><option key={f} value={f}>{f}</option>)}
-                </select>
-              </div>
-
-              {physNotesSaved&&<div className="success-box">✓ Notes saved</div>}
+              <div style={{marginBottom:10}}><div style={{fontSize:11,fontWeight:700,color:C.teal700,textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Diagnosis</div><div style={{minHeight:28,borderBottom:`1px solid ${C.border}`,fontSize:13,paddingBottom:4}}>{physNotes.diagnosis}</div></div>
+              {physNotes.investigations?.length>0&&<div style={{marginBottom:10}}><div style={{fontSize:11,fontWeight:700,color:C.teal700,textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>Investigations</div><div style={{display:"flex",flexWrap:"wrap",gap:5}}>{physNotes.investigations.map(inv=><span key={inv} style={{background:C.teal50,border:`1px solid ${C.teal400}`,borderRadius:6,padding:"2px 8px",fontSize:12}}>{inv}</span>)}</div></div>}
+              <div style={{marginBottom:10}}><div style={{fontSize:11,fontWeight:700,color:C.teal700,textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Medications</div><div style={{minHeight:44,borderBottom:`1px solid ${C.border}`,fontSize:13,whiteSpace:"pre-wrap",paddingBottom:4}}>{physNotes.medications}</div></div>
+              <div style={{marginBottom:10}}><div style={{fontSize:11,fontWeight:700,color:C.teal700,textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Physician Notes</div><div style={{minHeight:44,borderBottom:`1px solid ${C.border}`,fontSize:13,whiteSpace:"pre-wrap",paddingBottom:4}}>{physNotes.notes}</div></div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}><div><div style={{fontSize:11,fontWeight:700,color:C.teal700,letterSpacing:1,textTransform:"uppercase",marginBottom:4}}>Follow-up</div><div style={{fontSize:14,fontWeight:600}}>{physNotes.followUp||"—"}</div></div><div><div style={{fontSize:11,fontWeight:700,color:C.teal700,letterSpacing:1,textTransform:"uppercase",marginBottom:4}}>Lifestyle Risk</div><div style={{fontSize:14,fontWeight:600}}>{viewRec.rx?.riskCategory||"—"}</div></div></div>
+              <div style={{borderTop:`1px solid ${C.border}`,paddingTop:12,display:"flex",justifyContent:"space-between",fontSize:11,color:C.muted}}><div>Jayadev Memorial Rashtrotthana Hospital & Research Centre</div><div style={{textAlign:"right"}}><div style={{borderTop:"1px solid #999",width:140,marginBottom:3}}/><div>{user.name}</div><div>{user.specialty}</div></div></div>
+            </div>
+            <div className="card no-print" style={{marginTop:20,borderColor:C.teal400}}>
+              <div style={{fontFamily:"'Playfair Display',serif",fontSize:18,color:C.teal900,marginBottom:14}}>📝 Consultant Notes</div>
+              <div className="fg"><div className="fl">Diagnosis</div><input className="ti" placeholder="Clinical diagnosis…" value={physNotes.diagnosis} onChange={e=>setPhysNotes({...physNotes,diagnosis:e.target.value})}/></div>
+              <div className="fg"><div className="fl">Investigations</div><div style={{display:"flex",flexWrap:"wrap",gap:6,marginTop:4}}>{["CBC","Blood Sugar F/PP","HbA1c","Lipid Profile","LFT","RFT / Creatinine","Thyroid (TSH)","ECG","2D Echo","Chest X-Ray","USG Abdomen","Vitamin D","Vitamin B12","Urine R/M","BMD","Other"].map(inv=>{const on=(physNotes.investigations||[]).includes(inv);return(<div key={inv} onClick={()=>{const arr=physNotes.investigations||[];setPhysNotes({...physNotes,investigations:on?arr.filter(x=>x!==inv):[...arr,inv]});}} style={{padding:"5px 12px",borderRadius:20,border:`1.5px solid ${on?C.teal700:C.border}`,background:on?C.teal50:C.bg,cursor:"pointer",fontSize:12,color:on?C.teal900:C.text,fontWeight:on?600:400}}>{on?"✓ ":""}{inv}</div>);})}</div></div>
+              <div className="fg"><div className="fl">Medications / Rx</div><textarea className="ti" rows={4} placeholder="Medications, doses, frequency…" value={physNotes.medications} onChange={e=>setPhysNotes({...physNotes,medications:e.target.value})} style={{resize:"vertical"}}/></div>
+              <div className="fg"><div className="fl">Physician Notes</div><textarea className="ti" rows={4} placeholder="Clinical observations, referrals, special instructions…" value={physNotes.notes} onChange={e=>setPhysNotes({...physNotes,notes:e.target.value})} style={{resize:"vertical"}}/></div>
+              <div className="fg"><div className="fl">Follow-up</div><select className="si" value={physNotes.followUp} onChange={e=>setPhysNotes({...physNotes,followUp:e.target.value})}><option value="">Select…</option>{["1 week","2 weeks","4 weeks","6 weeks","3 months","6 months"].map(f=><option key={f} value={f}>{f}</option>)}</select></div>
+              {physNotesSaved&&<div className="success-box">✓ Saved</div>}
               <div style={{display:"flex",gap:10}}>
-                <button className="btn btn-lime" style={{flex:1,justifyContent:"center",padding:"12px"}} onClick={savePhysicianNotes}>
-                  💾 Save Notes
-                </button>
-                <button className="btn btn-rust" style={{flex:1,justifyContent:"center",padding:"12px"}} onClick={printOpd}>
-                  🖨 Print OPD Sheet
-                </button>
+                <button className="btn btn-lime" style={{flex:1,justifyContent:"center",padding:"12px"}} onClick={savePhysicianNotes}>💾 Save Notes</button>
+                <button className="btn btn-rust" style={{flex:1,justifyContent:"center",padding:"12px"}} onClick={printOpd}>🖨 Print OPD Sheet</button>
               </div>
             </div>
           </div>}
@@ -2491,7 +2345,6 @@ Jayadev Memorial Rashtrotthana Hospital & Research Centre`
                     <option value="">— Select consultant —</option>
                     {doctors.filter(d=>(d.type==="primary"||d.type==="both")&&(!newAppt.primarySpecialty||d.specialty===newAppt.primarySpecialty||d.dept===newAppt.primarySpecialty)).map(d=><option key={d.id} value={d.id}>{d.name}</option>)}
                   </select>
-                  {!newAppt.primaryDoctorId&&newAppt.primarySpecialty&&<div style={{fontSize:11,color:C.rust,marginTop:4}}>⚠ Must assign a consultant before registering</div>}
                 </div>
               </div>
             )}
@@ -2505,10 +2358,7 @@ Jayadev Memorial Rashtrotthana Hospital & Research Centre`
             {newAppt.visitType!=="walkin_mhc"&&(
               <div className="r2 fg">
                 <div><div className="fl">Appointment Date</div><input type="date" className="ti" value={newAppt.date} onChange={e=>setNewAppt({...newAppt,date:e.target.value})}/></div>
-                <div><div className="fl">Time</div>
-                  <input className="ti" list="time-suggestions" placeholder="e.g. 10:45 AM" value={newAppt.time} onChange={e=>setNewAppt({...newAppt,time:e.target.value})}/>
-                  <datalist id="time-suggestions">{TIME_SUGGESTIONS.map(t=><option key={t} value={t}/>)}</datalist>
-                </div>
+                <div><div className="fl">Time</div><input className="ti" list="time-suggestions" placeholder="e.g. 10:45 AM" value={newAppt.time} onChange={e=>setNewAppt({...newAppt,time:e.target.value})}/><datalist id="time-suggestions">{TIME_SUGGESTIONS.map(t=><option key={t} value={t}/>)}</datalist></div>
               </div>
             )}
             {newAppt.visitType==="walkin_mhc"&&(
