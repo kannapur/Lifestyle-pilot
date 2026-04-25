@@ -495,6 +495,446 @@ const FOLLOWUP_OPTS=["1 week","2 weeks","4 weeks","6 weeks","3 months","6 months
 const TIME_SUGGESTIONS=["7:30 AM","7:45 AM","8:00 AM","8:15 AM","8:30 AM","8:45 AM","9:00 AM","9:15 AM","9:30 AM","9:45 AM","10:00 AM","10:15 AM","10:30 AM","10:45 AM","11:00 AM","11:15 AM","11:30 AM","11:45 AM","12:00 PM","12:15 PM","12:30 PM","12:45 PM","1:00 PM","1:15 PM","1:30 PM","2:00 PM","2:15 PM","2:30 PM","2:45 PM","3:00 PM","3:15 PM","3:30 PM","3:45 PM","4:00 PM","4:15 PM","4:30 PM","4:45 PM","5:00 PM","5:15 PM","5:30 PM","5:45 PM","6:00 PM","6:30 PM","7:00 PM"];
 
 /* ═══════════════════════════════════════════════════════════
+   SPECIALTY TEMPLATES — per-specialty diagnoses, drugs,
+   investigations, advice, and examination fields.
+   getSpecialtyTemplate() does case-insensitive partial-match
+   so "Anaesthesiology & Lifestyle" → Anaesthesiology template.
+   Falls back to General Medicine for unknown specialties.
+═══════════════════════════════════════════════════════════ */
+const SPECIALTY_TEMPLATES = {
+  "Cardiology": {
+    label:"Cardiology",
+    icon:"❤️",
+    diagnoses:[
+      "Hypertension – Essential","Hypertension – Secondary",
+      "Coronary artery disease (CAD)","Acute coronary syndrome (ACS)","STEMI","NSTEMI","Unstable angina",
+      "Heart failure – HFrEF","Heart failure – HFpEF","Atrial fibrillation","Atrial flutter",
+      "Paroxysmal SVT","Ventricular tachycardia","Valvular disease – Mitral stenosis",
+      "Valvular disease – Aortic stenosis","Dilated cardiomyopathy","Hypertrophic cardiomyopathy",
+      "Pericarditis","Pericardial effusion","Dyslipidaemia","Metabolic syndrome",
+      "Peripheral arterial disease","Other (specify below)"
+    ],
+    drugs:[
+      "— Select —",
+      "Aspirin 75mg (Ecosprin)","Clopidogrel 75mg (Clopilet)","Ticagrelor 90mg (Brilinta)",
+      "Atorvastatin 10mg (Atorva)","Atorvastatin 20mg","Atorvastatin 40mg","Rosuvastatin 10mg (Rozucor)","Rosuvastatin 20mg",
+      "Metoprolol 25mg (Metolar)","Metoprolol 50mg XL","Bisoprolol 2.5mg","Bisoprolol 5mg","Carvedilol 3.125mg","Carvedilol 6.25mg",
+      "Amlodipine 5mg (Amlodac)","Amlodipine 10mg",
+      "Ramipril 2.5mg (Cardace)","Ramipril 5mg","Enalapril 5mg","Lisinopril 5mg","Perindopril 4mg",
+      "Telmisartan 40mg (Telma)","Telmisartan 80mg","Losartan 50mg (Cosart)",
+      "Sacubitril-Valsartan 50mg (Vymada)","Sacubitril-Valsartan 100mg",
+      "Furosemide 20mg (Lasix)","Furosemide 40mg","Torsemide 10mg (Dytor)","Spironolactone 25mg (Aldactone)","Eplerenone 25mg",
+      "Digoxin 0.25mg","Ivabradine 5mg (Coralan)",
+      "Rivaroxaban 15mg (Xarelto)","Rivaroxaban 20mg","Apixaban 5mg (Eliquis)","Dabigatran 110mg (Pradaxa)","Warfarin 2mg",
+      "Isosorbide mononitrate 20mg (Imdur)","Isosorbide dinitrate 5mg (Isordil)","GTN spray / patch",
+      "Enoxaparin 40mg SC (Clexane)","Enoxaparin 60mg SC",
+      "Ezetimibe 10mg (Ezentia)","Fenofibrate 160mg",
+      "Pantoprazole 40mg (Pan)","Paracetamol 500mg (Crocin)","Other (write below)"
+    ],
+    investigations:[
+      "ECG","2D Echo","Chest X-Ray","Troponin I / T","CK-MB","BNP / NT-proBNP",
+      "Lipid Profile","CBC","RFT / Creatinine","Blood Sugar F/PP","HbA1c","LFT",
+      "Holter Monitor (24 hr)","Stress Test (TMT)","Coronary Angiogram","CT Coronary Angiogram (CTCA)",
+      "Renal Artery Doppler","Carotid Doppler","Peripheral Arterial Doppler",
+      "Thyroid (TSH)","Urine R/M","Uric Acid","CRP / hsCRP","D-dimer","Serum Electrolytes"
+    ],
+    advice:[
+      "Low salt diet (<2 g/day)","Low fat / low cholesterol diet","Avoid saturated fats",
+      "Cardiac rehabilitation programme","Daily walking 30 min (or as tolerated)","Avoid strenuous exertion",
+      "Regular BP monitoring at home","Monitor weight daily (heart failure)","Fluid restriction (heart failure)",
+      "Regular pulse rate / rhythm check","Quit smoking","Avoid alcohol",
+      "Avoid NSAIDs","INR monitoring (warfarin patients)","Follow-up ECG","Stress management","Adequate sleep 7–8 hrs"
+    ],
+    examFields:[
+      {k:"jvp",      l:"JVP",               opts:["Not elevated","Elevated 4–6 cm","Markedly elevated","+HJR","Not assessable"]},
+      {k:"apexBeat", l:"Apex Beat",          opts:["5th ICS MCL – Normal","Displaced laterally","Heaving","Thrusting","Not palpable"]},
+      {k:"hs",       l:"Heart Sounds",       opts:["S1 S2 Normal","S1 S2 + Murmur","S3 Gallop","S4 Gallop","Muffled","Metallic clicks"]},
+      {k:"murmur",   l:"Murmur",             opts:["None","Systolic – ejection","Systolic – regurgitant","Diastolic","Pan-systolic","Continuous"]},
+      {k:"periEdema",l:"Peripheral Oedema",  opts:["Absent","Pitting +","Pitting ++","Pitting +++","Non-pitting"]},
+      {k:"pulses",   l:"Peripheral Pulses",  opts:["Equal & palpable bilaterally","Diminished","Absent – right","Absent – left","Brachioradial delay"]},
+    ]
+  },
+
+  "Endocrinology": {
+    label:"Endocrinology",
+    icon:"🧬",
+    diagnoses:[
+      "Type 2 Diabetes Mellitus","Type 1 Diabetes Mellitus","Pre-diabetes / IGT","Gestational Diabetes",
+      "Diabetic nephropathy","Diabetic neuropathy","Diabetic retinopathy",
+      "Hypothyroidism – Primary","Hyperthyroidism – Graves disease","Thyroid nodule / Goitre","Thyroiditis",
+      "PCOS","Metabolic syndrome","Obesity","Dyslipidaemia",
+      "Cushing's syndrome","Addison's disease","Hyperparathyroidism","Hypoparathyroidism",
+      "Hyperprolactinaemia","Acromegaly","Other (specify below)"
+    ],
+    drugs:[
+      "— Select —",
+      "Metformin 500mg (Glycomet)","Metformin 850mg","Metformin 1000mg (Glycomet SR)",
+      "Glimepiride 1mg (Amaryl)","Glimepiride 2mg","Glibenclamide 5mg",
+      "Sitagliptin 100mg (Januvia)","Vildagliptin 50mg (Galvus)","Teneligliptin 20mg (Tendia)",
+      "Empagliflozin 10mg (Jardiance)","Dapagliflozin 10mg (Forxiga)","Canagliflozin 100mg (Invokana)",
+      "Liraglutide 0.6mg SC (Victoza)","Semaglutide 0.5mg SC (Ozempic)","Dulaglutide 0.75mg SC (Trulicity)",
+      "Insulin Glargine 10 IU (Lantus / Basalog)","Insulin Degludec (Tresiba)","Insulin NPH",
+      "Insulin Regular (Actrapid)","Insulin Aspart (NovoRapid)","Premixed 30/70",
+      "Levothyroxine 25mcg (Thyronorm)","Levothyroxine 50mcg","Levothyroxine 75mcg","Levothyroxine 100mcg",
+      "Carbimazole 10mg","Methimazole 5mg","Propylthiouracil 100mg",
+      "Prednisolone 10mg","Hydrocortisone 20mg","Fludrocortisone 0.1mg",
+      "Vitamin D3 60000 IU (Calcirol) – weekly","Calcium + D3 500mg (Shelcal)","Cholecalciferol 1000 IU daily",
+      "Atorvastatin 10mg (Atorva)","Rosuvastatin 10mg (Rozucor)","Ezetimibe 10mg","Fenofibrate 160mg",
+      "Pioglitazone 15mg","Other (write below)"
+    ],
+    investigations:[
+      "FBS (Fasting Blood Sugar)","PPBS (Post-prandial Blood Sugar)","Random Blood Sugar","OGTT 75g",
+      "HbA1c","Fasting Insulin","C-peptide","HOMA-IR",
+      "TSH","Free T3 (FT3)","Free T4 (FT4)","Anti-TPO Antibody","Anti-TSH Receptor Antibody",
+      "USG Thyroid","RAIU (Radioiodine Uptake)","Fine Needle Aspiration Cytology (FNAC) – Thyroid",
+      "Lipid Profile","LFT","RFT / Creatinine","CBC","Urine Microalbumin","24hr Urine Protein",
+      "Vitamin D (25-OH)","Calcium","Phosphorus","PTH (Parathyroid Hormone)",
+      "Serum Cortisol (8 AM)","ACTH Stimulation Test","Prolactin","IGF-1","hsCRP"
+    ],
+    advice:[
+      "Diabetic diet – low GI, portion control","Carbohydrate counting","Avoid refined sugars / white rice",
+      "Daily walking 30–45 min","Resistance training twice weekly",
+      "Regular blood sugar monitoring (pre & post meals)","HbA1c review every 3 months",
+      "Foot care – daily inspection for wounds","Annual fundoscopy / retinal screen",
+      "Annual urine albumin check","Thyroid review every 6 months",
+      "Avoid iodine excess (hyperthyroidism)","Ensure adequate iodine intake (hypothyroidism)",
+      "Weight reduction target","Avoid smoking / alcohol","Regular BP monitoring","Stress management"
+    ],
+    examFields:[
+      {k:"thyroid",      l:"Thyroid Gland",         opts:["Not palpable","Diffuse goitre","Nodular goitre","Single nodule","Tender","Bruit +"]},
+      {k:"acanthosis",   l:"Acanthosis Nigricans",   opts:["Absent","Present – neck","Present – axilla","Extensive"]},
+      {k:"pigmentation", l:"Skin / Pigmentation",    opts:["Normal","Hyperpigmented","Vitiligo","Striae","Thin / Atrophic skin"]},
+      {k:"edema",        l:"Pedal Oedema",           opts:["Absent","Trace +","Pitting +","Pitting ++"]},
+      {k:"waistCirc",    l:"Waist Circumference",    opts:["<80cm(F)/<90cm(M) Normal","Borderline","≥80cm(F)/≥90cm(M) Elevated"]},
+      {k:"virilisation", l:"Virilisation Signs (F)", opts:["Absent","Hirsutism +","Hirsutism ++","Acne","Androgenic alopecia"]},
+    ]
+  },
+
+  "Orthopaedics": {
+    label:"Orthopaedics",
+    icon:"🦴",
+    diagnoses:[
+      "Osteoarthritis – Knee","Osteoarthritis – Hip","Osteoarthritis – Shoulder",
+      "Lumbar disc prolapse / PIVD","Cervical disc prolapse / Cervical spondylosis","Lumbar spondylosis",
+      "Rotator cuff injury / tear","Frozen shoulder (Adhesive capsulitis)","Tennis elbow","Golfer's elbow",
+      "Plantar fasciitis","Achilles tendinopathy","Patellofemoral pain syndrome",
+      "Osteoporosis / Osteopenia","Fracture – Acute","Fracture – Post-operative",
+      "Rheumatoid arthritis","Gout – Acute flare","Gout – Tophaceous","Pseudogout",
+      "Carpal tunnel syndrome","De Quervain's tenosynovitis","Meniscal tear","ACL / PCL tear",
+      "Ligament sprain","Scoliosis","Other (specify below)"
+    ],
+    drugs:[
+      "— Select —",
+      "Paracetamol 500mg (Crocin)","Paracetamol 650mg (Dolo)","Tramadol 50mg (Tramazac)",
+      "Ibuprofen 400mg (Brufen)","Diclofenac 50mg (Voveran)","Diclofenac 75mg SR","Naproxen 500mg",
+      "Etoricoxib 60mg (Arcoxia)","Etoricoxib 90mg","Celecoxib 200mg (Celebrex)","Aceclofenac 100mg (Zerodol)",
+      "Aceclofenac + Serratiopeptidase","Thiocolchicoside 4mg (Muscoril)","Methocarbamol 750mg","Baclofen 10mg",
+      "Pregabalin 75mg (Lyrica)","Pregabalin 150mg","Gabapentin 300mg",
+      "Allopurinol 100mg (Zyloric)","Allopurinol 300mg","Febuxostat 40mg (Febustat)","Colchicine 0.5mg",
+      "Calcium Carbonate 500mg + D3 (Shelcal)","Alendronate 70mg (Osteofos) – weekly","Risedronate 35mg – weekly",
+      "Vitamin D3 60000 IU (Calcirol) – weekly",
+      "Methylprednisolone 4mg (Medrol)","Deflazacort 6mg","Hydroxychloroquine 200mg (HCQS)",
+      "Sulfasalazine 500mg","Methotrexate 7.5mg (MTX)",
+      "Topical Diclofenac gel","Topical Ketoprofen gel","Other (write below)"
+    ],
+    investigations:[
+      "X-Ray – Knee (Bilateral weight bearing)","X-Ray – Hip AP","X-Ray – Lumbar Spine AP + Lateral",
+      "X-Ray – Cervical Spine","X-Ray – Shoulder","X-Ray – Wrist / Hand","X-Ray – Foot",
+      "MRI – Knee","MRI – Hip","MRI – Lumbar Spine","MRI – Cervical Spine","MRI – Shoulder",
+      "CT Scan – Spine","CT Scan – Hip","DEXA Scan (Bone Mineral Density)",
+      "Uric Acid","ESR","CRP / hsCRP","RA Factor","Anti-CCP Antibody","ANA",
+      "CBC","RFT / Creatinine","LFT","Calcium","Phosphorus","Vitamin D","Vitamin B12"
+    ],
+    advice:[
+      "RICE – Rest, Ice, Compression, Elevation","Avoid high-impact activities","Non-weight bearing (fracture)",
+      "Physiotherapy referral","Home exercises as instructed","Quadriceps strengthening (knee OA)",
+      "Core strengthening exercises (back pain)","Weight reduction target","Use of walking aid / stick",
+      "Appropriate footwear – shock-absorbing soles","Knee brace / collar / splint as advised",
+      "Avoid NSAIDs if renal impairment","Calcium-rich diet","Regular DEXA follow-up (osteoporosis)",
+      "Low purine diet (gout)","Adequate hydration","Avoid prolonged sitting / bending"
+    ],
+    examFields:[
+      {k:"affJoint",   l:"Affected Joint(s)",   opts:["Knee – Bilateral","Knee – Right","Knee – Left","Hip – Right","Hip – Left","Spine – Lumbar","Spine – Cervical","Shoulder – Right","Shoulder – Left","Wrist / Hand","Ankle / Foot","Multiple"]},
+      {k:"swelling",   l:"Swelling / Effusion", opts:["Absent","Mild swelling","Moderate effusion","Tense effusion","Warm + erythematous"]},
+      {k:"rom",        l:"Range of Motion",     opts:["Full / Normal","Mildly restricted","Moderately restricted","Severely restricted","Ankylosed"]},
+      {k:"power",      l:"Muscle Power",        opts:["5/5 Normal","4/5 Against gravity + resistance","3/5 Against gravity","2/5 With gravity eliminated","1/5 Flicker only","0/5 None"]},
+      {k:"specialTest",l:"Special Test",        opts:["Negative","Lachman positive","McMurray positive","Apprehension sign +","Spurling sign +","SLR positive","Finkelstein positive","Phalen sign +","Tinel sign +"]},
+      {k:"deformity",  l:"Deformity",           opts:["None","Valgus","Varus","Kyphosis","Scoliosis","Flexion contracture","Shortening"]},
+    ]
+  },
+
+  "Neurology": {
+    label:"Neurology",
+    icon:"🧠",
+    diagnoses:[
+      "Migraine – without aura","Migraine – with aura","Tension-type headache","Cluster headache",
+      "Epilepsy – Generalised tonic-clonic","Epilepsy – Focal","Status epilepticus",
+      "Ischaemic stroke","Haemorrhagic stroke","TIA","Lacunar infarct",
+      "Parkinson's disease","Essential tremor","Dystonia","Multiple sclerosis",
+      "Neuromyelitis optica (NMOSD)","Guillain-Barré syndrome",
+      "Peripheral neuropathy – Diabetic","Peripheral neuropathy – Other",
+      "Carpal tunnel syndrome","Cubital tunnel syndrome",
+      "Alzheimer's dementia","Vascular dementia","Lewy body dementia","Frontotemporal dementia",
+      "Motor neuron disease / ALS","Myasthenia gravis","Myopathy",
+      "Meningitis – Bacterial","Meningitis – Viral","Encephalitis","Brain abscess","Other (specify below)"
+    ],
+    drugs:[
+      "— Select —",
+      "Phenytoin 100mg (Eptoin)","Valproate 200mg (Valparin)","Valproate 500mg CR (Encorate)",
+      "Carbamazepine 200mg (Tegretol)","Oxcarbazepine 300mg (Oxetol)",
+      "Levetiracetam 250mg (Keppra)","Levetiracetam 500mg","Lamotrigine 25mg (Lamictal)","Lamotrigine 50mg",
+      "Topiramate 25mg (Topamax)","Clobazam 10mg (Frisium)","Clonazepam 0.5mg (Clonotril)",
+      "Sumatriptan 50mg (Suminat)","Sumatriptan 100mg","Rizatriptan 10mg (Rizaliv)","Zolmitriptan 2.5mg",
+      "Propranolol 40mg (migraine prophylaxis)","Amitriptyline 10mg (Tryptomer)","Flunarizine 5mg (Sibelium)","Sodium valproate 200mg (migraine)",
+      "Pregabalin 75mg (Lyrica)","Pregabalin 150mg","Gabapentin 300mg","Duloxetine 30mg (neuropathy)",
+      "Levodopa-Carbidopa 100/25 (Syndopa)","Levodopa-Carbidopa 250/25","Pramipexole 0.25mg","Ropinirole 0.25mg","Rasagiline 1mg","Trihexyphenidyl 2mg",
+      "Donepezil 5mg (Donecept)","Donepezil 10mg","Rivastigmine patch 4.6mg","Memantine 10mg (Admenta)",
+      "Pyridostigmine 60mg (Mestinon)","Prednisolone 30mg","IV Methylprednisolone 500mg",
+      "Aspirin 75mg (stroke secondary prevention)","Clopidogrel 75mg (stroke)","Atorvastatin 40mg (stroke)",
+      "Rivaroxaban 15mg (AF)","Apixaban 5mg (AF)","Warfarin 2mg",
+      "Baclofen 10mg (spasticity)","Other (write below)"
+    ],
+    investigations:[
+      "MRI Brain – Plain","MRI Brain – Contrast","MRI Brain – DWI/ADC (Stroke protocol)","MR Angiogram – Circle of Willis",
+      "MRI Cervical Spine","MRI Lumbar Spine","CT Brain – Plain","CT Brain – Contrast",
+      "EEG (Electroencephalogram)","Video EEG","EMG / NCS (Nerve Conduction Study)",
+      "CSF Analysis (Lumbar Puncture)","CSF Culture","Autoimmune panel (ANA, ANCA, Anti-NMDAR, Anti-MOG)",
+      "CBC","RFT / Creatinine","LFT","Blood Sugar F/PP","HbA1c","Thyroid (TSH)","Vitamin B12","Serum Folate",
+      "Lipid Profile","Homocysteine","Coagulation screen (PT, INR, aPTT)","ANA / Anti-dsDNA",
+      "Carotid Doppler","Serum Ammonia","Serum Lactate","PET Brain","EEG-Video monitoring"
+    ],
+    advice:[
+      "Avoid migraine triggers (sleep deprivation, stress, specific foods)","Maintain headache diary",
+      "Do NOT miss anti-epileptic medication","No driving until seizure-free for 6 months (epilepsy)",
+      "Stroke rehabilitation – physio / speech therapy","Daily walking as tolerated",
+      "Fall prevention measures (Parkinson's / elderly)","Caregiver education (dementia / PD)",
+      "Avoid alcohol / smoking","Cognitive exercises (dementia prevention)",
+      "Annual blood tests (AED drug levels / LFT / CBC)","Vitamin B12 supplementation",
+      "Blood sugar control (diabetic neuropathy)","Regular BP monitoring (stroke prevention)"
+    ],
+    examFields:[
+      {k:"mmse",         l:"Mental Status (MMSE)",  opts:["30/30 – Normal","25–29 – Mild impairment","20–24 – Mild cognitive impairment","10–19 – Moderate","<10 – Severe"]},
+      {k:"cranialNerves",l:"Cranial Nerves",         opts:["Intact bilaterally","CN III palsy","CN VI palsy","CN VII – LMN palsy","CN VII – UMN palsy","CN XII palsy","Multiple CN involvement"]},
+      {k:"motorPower",   l:"Motor Power (Limbs)",   opts:["5/5 all limbs","4/5 upper limb(s)","4/5 lower limb(s)","3/5 hemiparesis","Paraparesis","Monoparesis","Quadriparesis"]},
+      {k:"sensory",      l:"Sensory",               opts:["Intact","Hypoaesthesia – distal","Stocking-glove pattern","Hemisensory loss","Saddle anaesthesia","Allodynia / hyperalgesia"]},
+      {k:"cerebellar",   l:"Cerebellar Signs",      opts:["Absent","Dysmetria","Ataxic gait","Nystagmus","Intention tremor","Dysdiadochokinesia"]},
+      {k:"reflexes",     l:"Reflexes",              opts:["Normal","Brisk / Hyperreflexia","Plantars – Extensor (Babinski +)","Hyporeflexia","Areflexia"]},
+    ]
+  },
+
+  "Anaesthesiology": {
+    label:"Anaesthesiology",
+    icon:"💉",
+    diagnoses:[
+      "Pre-anaesthetic assessment – Elective","Pre-anaesthetic assessment – Emergency",
+      "ASA I – Healthy patient","ASA II – Mild systemic disease","ASA III – Severe systemic disease",
+      "ASA IV – Life-threatening disease","ASA V – Moribund",
+      "High-risk / Difficult airway","Post-operative review",
+      "Chronic pain management","Acute pain management","Epidural analgesia review",
+      "Post-dural puncture headache","Anaesthesia-related complication review","Other (specify below)"
+    ],
+    drugs:[
+      "— Select —",
+      "Tab Alprazolam 0.25mg (Alprax) – pre-op night","Tab Lorazepam 1mg (Ativan) – pre-op night",
+      "Tab Ranitidine 150mg – pre-op","Tab Pantoprazole 40mg (Pan) – pre-op",
+      "Antacid – Syrup Mucaine 10ml pre-op","Tab Metoclopramide 10mg – pre-op","Tab Ondansetron 8mg – pre-op",
+      "Tab Paracetamol 500mg (Crocin) – post-op","Tab Paracetamol 650mg (Dolo) – post-op",
+      "Tab Ibuprofen 400mg (Brufen) – post-op","Tab Diclofenac 50mg – post-op",
+      "Tab Tramadol 50mg – post-op","Tab Tramadol 100mg – post-op",
+      "Tab Metoprolol 25mg – CONTINUE pre-op","Tab Aspirin 75mg – CONTINUE pre-op",
+      "Tab Metformin – HOLD 48hr pre-op","Insulin – adjust per sliding scale",
+      "Tab Amlodipine 5mg – CONTINUE","Tab Ramipril – HOLD morning of surgery",
+      "Enoxaparin 40mg SC – DVT prophylaxis","Other (write below)"
+    ],
+    investigations:[
+      "CBC (Haemoglobin, Platelets)","PT / INR","aPTT","LFT","RFT / Creatinine",
+      "Blood Sugar – Fasting","HbA1c","Serum Electrolytes (Na, K, Cl)","ABG (Arterial Blood Gas)",
+      "Chest X-Ray (PA view)","ECG","2D Echo / Echocardiography",
+      "Blood Group & Cross Match","Urine R/M","Thyroid (TSH)",
+      "Spirometry / PFT (Pulmonary Function Test)","Viral markers (HBsAg, Anti-HCV, HIV)","Coagulation screen"
+    ],
+    advice:[
+      "NBM – 6 hrs solids, 2 hrs clear fluids before surgery","Continue essential medications with a small sip of water",
+      "STOP anticoagulants / antiplatelet as instructed","STOP Metformin 48 hrs before surgery",
+      "Adjust insulin dose per anaesthesia team advice","Blood sugar target <150 mg/dL pre-operatively",
+      "Remove dental prosthesis, jewellery, nail polish before surgery","Bowel prep if advised (abdominal surgery)",
+      "Pre-operative deep breathing exercises","Incentive spirometry training pre-op",
+      "Inform team if fever / loose stools – surgery may be postponed",
+      "High-risk discussed with patient and family","Consent obtained / to be obtained"
+    ],
+    examFields:[
+      {k:"mallampati", l:"Mallampati Grade",     opts:["Grade I – Full view of uvula, fauces","Grade II – Soft palate, uvula visible","Grade III – Soft palate, base of uvula","Grade IV – Soft palate not visible"]},
+      {k:"mouthOpen",  l:"Mouth Opening",        opts:[">4 cm – Adequate","3–4 cm – Borderline","<3 cm – Restricted","Cannot open mouth"]},
+      {k:"thyroMental",l:"Thyromental Distance", opts:[">6.5 cm – Adequate","6–6.5 cm – Borderline","<6 cm – Difficult intubation likely"]},
+      {k:"neckMobility",l:"Neck Mobility",       opts:["Full range of motion","Mildly restricted","Markedly restricted – extension","Fixed / Fused"]},
+      {k:"asaGrade",   l:"ASA Physical Status",  opts:["ASA I – Healthy","ASA II – Mild systemic disease","ASA III – Severe systemic disease","ASA IV – Life-threatening","ASA V – Moribund"]},
+      {k:"dentures",   l:"Dentures / Loose Teeth",opts:["None","Upper dentures","Lower dentures","Loose teeth noted","Crowns / Implants"]},
+    ]
+  },
+
+  "Urology": {
+    label:"Urology",
+    icon:"🫘",
+    diagnoses:[
+      "Benign Prostatic Hyperplasia (BPH)","Prostate carcinoma","Bladder carcinoma","Renal cell carcinoma",
+      "Urolithiasis – Renal calculi","Urolithiasis – Ureteric calculi","Urolithiasis – Bladder calculi",
+      "UTI – Lower (Cystitis)","UTI – Upper (Pyelonephritis)","Urethral stricture",
+      "Hydronephrosis","Vesicoureteral reflux","Overactive bladder",
+      "Stress urinary incontinence","Overflow incontinence","Erectile dysfunction",
+      "Male infertility / Azoospermia","Varicocele","Epididymo-orchitis",
+      "Phimosis / Paraphimosis","Renal cyst","ADPKD","Other (specify below)"
+    ],
+    drugs:[
+      "— Select —",
+      "Tamsulosin 0.4mg (Urimax)","Silodosin 8mg (Silodal)","Doxazosin 4mg (Cardura)",
+      "Finasteride 5mg (Finpecia / Penester)","Dutasteride 0.5mg (Dutas)","Tamsulosin + Dutasteride (Duodart)",
+      "Tadalafil 5mg OD (Cialis – BPH / ED)",
+      "Solifenacin 5mg (Vesicare)","Solifenacin 10mg","Tolterodine 4mg ER (Detrol LA)","Oxybutynin 5mg","Mirabegron 25mg (Betmiga)","Mirabegron 50mg",
+      "Ciprofloxacin 500mg (Ciplox)","Co-trimoxazole DS (Bactrim)","Nitrofurantoin 100mg (Nitrofur)","Norfloxacin 400mg","Ofloxacin 200mg",
+      "Sildenafil 25mg (Penegra)","Sildenafil 50mg","Sildenafil 100mg","Tadalafil 10mg (Cialis – ED)","Tadalafil 20mg","Vardenafil 10mg",
+      "Allopurinol 300mg (uric acid stones)","Potassium citrate (alkali therapy)",
+      "Doxycycline 100mg (epididymitis)","Azithromycin 1g single dose",
+      "Diclofenac 50mg (renal colic)","Tramadol 50mg","Paracetamol 500mg (Crocin)",
+      "Other (write below)"
+    ],
+    investigations:[
+      "Urine R/M","Urine Culture & Sensitivity","Urine Cytology",
+      "PSA (Total)","Free PSA","PSA Density","PSA Velocity",
+      "USG Abdomen & Pelvis (with PVR)","CT Urography (non-contrast)","MRI Prostate (mpMRI)","Renal Doppler",
+      "Uroflowmetry / PFR","Post-void Residual (PVR)","Urodynamics","Cystoscopy",
+      "X-Ray KUB","Intravenous Pyelogram (IVP)","TRUS Biopsy","Testicular USG + Doppler",
+      "Semen Analysis","Hormone panel (LH, FSH, Testosterone)","CBC","RFT / Creatinine","Uric Acid"
+    ],
+    advice:[
+      "Adequate hydration – 2.5–3 L water/day","Avoid caffeine / alcohol (OAB / UTI)",
+      "Double voiding technique (BPH)","Pelvic floor exercises (incontinence)",
+      "Avoid prolonged sitting","Reduce fluids after 6 PM (nocturia)","Warm sitz baths (perineal discomfort)",
+      "Low oxalate diet (calcium oxalate stones)","Low salt / low protein diet (stones)",
+      "Avoid NSAIDs if renal impairment","Regular PSA / USG follow-up",
+      "No heavy lifting (post-op)","Catheter care instructions (if applicable)"
+    ],
+    examFields:[
+      {k:"dre",       l:"DRE (Digital Rectal Exam)",opts:["Not done","Normal – smooth, firm","Enlarged Grade I","Enlarged Grade II","Enlarged Grade III","Hard nodule / asymmetric","Tenderness +"]},
+      {k:"renalAngle",l:"Renal Angle Tenderness",   opts:["Absent bilaterally","Right flank +","Left flank +","Bilateral +"]},
+      {k:"bladder",   l:"Bladder Palpable",          opts:["Not palpable","Palpable","Tender","Distended"]},
+      {k:"genitalia", l:"External Genitalia",        opts:["Normal","Phimosis","Paraphimosis","Meatal stenosis","Epididymal cyst","Varicocele","Hydrocele","Testicular mass"]},
+      {k:"ipss",      l:"IPSS Score",                opts:["0–7 – Mild","8–19 – Moderate","20–35 – Severe"]},
+      {k:"uroflow",   l:"Uroflowmetry (Q max)",      opts:["Not done",">15 mL/s – Normal","10–15 mL/s – Borderline","<10 mL/s – Obstructed"]},
+    ]
+  },
+
+  "Surgery": {
+    label:"Surgery",
+    icon:"🔪",
+    diagnoses:[
+      "Acute appendicitis","Appendicular mass / abscess","Acute abdomen",
+      "Inguinal hernia – Indirect","Inguinal hernia – Direct","Femoral hernia","Umbilical hernia","Incisional hernia","Hiatus hernia",
+      "Cholelithiasis / Biliary colic","Acute cholecystitis","Cholangitis","Pancreatitis – Acute","Pancreatitis – Chronic",
+      "GERD / Peptic oesophagitis","Peptic ulcer disease","Perforated peptic ulcer",
+      "Intestinal obstruction – SBO","Intestinal obstruction – LBO",
+      "Haemorrhoids (Grade I–IV)","Fissure in ano","Fistula in ano","Pilonidal sinus","Perianal abscess",
+      "Colorectal carcinoma","Carcinoma stomach","Carcinoma pancreas","Carcinoma oesophagus",
+      "Breast lump – Fibroadenoma","Breast carcinoma","Breast abscess",
+      "Thyroid nodule – Benign","Thyroid carcinoma",
+      "Varicose veins","DVT","Lymphadenopathy","Lipoma / Sebaceous cyst",
+      "Post-operative review","Wound infection / SSI","Other (specify below)"
+    ],
+    drugs:[
+      "— Select —",
+      "Inj. Cefazolin 1g IV (peri-op prophylaxis)","Inj. Metronidazole 500mg IV","Inj. Gentamicin 80mg IV",
+      "Tab Amoxicillin-Clavulanate 625mg (Augmentin)","Tab Ciprofloxacin 500mg (Ciplox)","Tab Metronidazole 400mg (Flagyl)","Tab Cefuroxime 250mg","Tab Cephalexin 500mg",
+      "Tab Pantoprazole 40mg (Pan)","Tab Omeprazole 20mg (Omez)","Tab Rabeprazole 20mg (Razo)","Inj. Pantoprazole 40mg IV",
+      "Tab Paracetamol 500mg (Crocin)","Tab Paracetamol 650mg (Dolo) – post-op","Tab Tramadol 50mg – post-op","Tab Diclofenac 50mg","Tab Ibuprofen 400mg","Inj. Ketorolac 30mg IM",
+      "Tab Ondansetron 4mg (Emeset)","Tab Metoclopramide 10mg",
+      "Tab Bisacodyl 5mg (Dulcolax)","Lactulose syrup 15ml","Tab Psyllium husk (Isabgol)",
+      "Tab Diosmin + Hesperidin 500mg (Daflon – piles)","Lignocaine gel local",
+      "Silver Sulfadiazine 1% cream (wound)","Framycetin gauze",
+      "Enoxaparin 40mg SC (DVT prophylaxis)","Tab Rivaroxaban 10mg (DVT treatment)","Tab Aspirin 75mg",
+      "Other (write below)"
+    ],
+    investigations:[
+      "CBC","LFT","RFT / Creatinine","Blood Sugar (Fasting)","HbA1c",
+      "Coagulation (PT, INR, aPTT)","Blood Group & Cross Match","Serum Electrolytes","Serum Amylase / Lipase","Serum Bilirubin (Total + Direct)",
+      "Chest X-Ray (PA)","X-Ray Abdomen (Erect)","USG Abdomen & Pelvis","CECT Abdomen (Triple phase)",
+      "Endoscopy (UGIE)","Colonoscopy","ERCP","MRCP","CT Chest","Mammogram","USG Breast",
+      "FNAC","Biopsy – Core / Excision","Histopathology","CEA / CA 19-9 / CA 125","AFP",
+      "Urine R/M","Wound Swab Culture & Sensitivity","ECG","Viral markers (HBsAg, HIV, HCV)"
+    ],
+    advice:[
+      "Wound care – keep dry for 48 hours","Dressing change every 2–3 days","Suture removal on day ___",
+      "No heavy lifting / strenuous activity for 6 weeks","Ambulate early – avoid prolonged bed rest",
+      "High protein diet – promotes wound healing","Adequate hydration","Avoid constipation – use laxatives if needed",
+      "DVT prophylaxis – ambulate early, TED stockings","Review immediately if fever, wound discharge or increased pain",
+      "High-fibre diet (anorectal conditions)","Avoid straining at stool (haemorrhoids / fissure)","Warm sitz baths twice daily (anorectal)",
+      "Bowel prep as advised","Quit smoking – delays wound healing","Blood sugar control pre and post-operatively","Follow-up for histopathology report"
+    ],
+    examFields:[
+      {k:"abdomen",     l:"Abdomen",          opts:["Soft non-tender","Tenderness – right iliac fossa","Tenderness – epigastric","Tenderness – right hypochondrium","Generalised guarding","Rigidity +","Distended"]},
+      {k:"hernia",      l:"Hernia Site",      opts:["Not present","Inguinal – right reducible","Inguinal – right irreducible","Inguinal – left","Umbilical","Incisional","Femoral – right","Femoral – left"]},
+      {k:"lymphNodes",  l:"Lymph Nodes",      opts:["Not palpable","Cervical – palpable","Axillary – palpable","Inguinal – palpable","Fixed nodes","Matted nodes"]},
+      {k:"dre",         l:"DRE",              opts:["Not done","Normal – no mass","Haemorrhoids","Fissure in ano","Mass palpable","Blood on glove"]},
+      {k:"wound",       l:"Wound (Post-op)",  opts:["Not applicable","Clean and dry","Mild erythema","Serous discharge","Purulent discharge","Wound dehiscence","Healing well"]},
+      {k:"bowelSounds", l:"Bowel Sounds",     opts:["Normal","Hyperactive","Hypoactive","Absent (ileus)","Metallic / Tinkling (obstruction)"]},
+    ]
+  },
+
+  "General Medicine": {
+    label:"General Medicine",
+    icon:"🩺",
+    diagnoses:[
+      "Type 2 Diabetes Mellitus","Type 1 Diabetes Mellitus","Hypertension – Essential",
+      "Hypothyroidism","Hyperthyroidism","Coronary artery disease / IHD","Heart failure","Asthma","COPD",
+      "Community-acquired pneumonia","UTI – Lower","UTI – Upper","Gastroenteritis",
+      "Osteoarthritis / Arthritis","Obesity / Overweight","PCOS / PCOD","Chronic kidney disease",
+      "Fatty liver / NAFLD","Anaemia – Iron deficiency","Anaemia – B12 deficiency","Anaemia – other",
+      "Anxiety / Depression","Migraine","Gout","Metabolic syndrome","Dyslipidaemia","Pre-diabetes / IGT",
+      "Dengue fever","Malaria","Typhoid / Enteric fever","Leptospirosis","COVID-19 / SARI",
+      "Pyrexia of unknown origin (PUO)","Viral fever","Sepsis","Other (specify below)"
+    ],
+    drugs:[
+      "— Select —",
+      "Metformin 500mg (Glycomet)","Metformin 1000mg (Glycomet SR)","Glimepiride 1mg (Amaryl)","Glimepiride 2mg","Glibenclamide 5mg","Sitagliptin 100mg (Januvia)","Empagliflozin 10mg (Jardiance)",
+      "Amlodipine 5mg (Amlodac)","Amlodipine 10mg","Telmisartan 40mg (Telma)","Telmisartan 80mg","Losartan 50mg (Cosart)","Ramipril 2.5mg (Cardace)","Ramipril 5mg","Enalapril 5mg","Metoprolol 25mg (Metolar)","Metoprolol 50mg","Atenolol 50mg",
+      "Atorvastatin 10mg (Atorva)","Atorvastatin 20mg","Rosuvastatin 10mg (Rozucor)","Aspirin 75mg (Ecosprin)","Clopidogrel 75mg",
+      "Pantoprazole 40mg (Pan)","Omeprazole 20mg (Omez)","Ranitidine 150mg","Domperidone 10mg (Domperi)","Ondansetron 4mg (Emeset)",
+      "Levothyroxine 25mcg (Thyronorm)","Levothyroxine 50mcg","Levothyroxine 75mcg","Levothyroxine 100mcg",
+      "Vitamin D3 60000 IU (Calcirol) – weekly","Vitamin B12 1500mcg (Mecobalamin)","Iron + Folic Acid (Feronia-XT)","Calcium + D3 (Shelcal)",
+      "Paracetamol 500mg (Crocin)","Paracetamol 650mg (Dolo)","Ibuprofen 400mg (Brufen)","Diclofenac 50mg (Voveran)",
+      "Azithromycin 500mg (Azithral)","Amoxicillin 500mg","Amoxicillin-Clavulanate 625mg","Doxycycline 100mg","Ciprofloxacin 500mg","Metronidazole 400mg",
+      "Furosemide 40mg (Lasix)","Spironolactone 25mg (Aldactone)","Pregabalin 75mg","Gabapentin 300mg","Alprazolam 0.25mg","Escitalopram 10mg",
+      "Allopurinol 300mg (Zyloric)","Colchicine 0.5mg","Hydroxychloroquine 200mg (HCQS)",
+      "Prednisolone 10mg","ORS sachets","Other (write below)"
+    ],
+    investigations:[
+      "CBC","Blood Sugar F/PP","HbA1c","Lipid Profile","LFT","RFT / Creatinine","Thyroid (TSH)",
+      "ECG","2D Echo","Chest X-Ray","USG Abdomen","Vitamin D","Vitamin B12","Urine R/M",
+      "Dengue NS1 / IgM / IgG","Malaria Ag test / Peripheral smear","Widal test","Blood Culture & Sensitivity",
+      "ESR","CRP / hsCRP","ANA / Anti-dsDNA","RA Factor","Anti-CCP","Serum Ferritin","Serum Iron + TIBC",
+      "HBsAg","Anti-HCV","HIV (ELISA)","Urine Culture & Sensitivity","Stool R/M + Culture","Sputum AFB"
+    ],
+    advice:[
+      "Low salt diet","Low fat diet","Diabetic diet","Avoid refined sugars","Daily walking 30 min",
+      "Yoga / stretching","Avoid NSAIDs","Avoid alcohol","Quit smoking","Weight reduction target",
+      "Regular BP monitoring","Regular blood sugar monitoring","Stress management","Adequate hydration",
+      "Adequate sleep 7–8 hrs","Eat fresh home-cooked food","Annual health check-up"
+    ],
+    examFields:[
+      {k:"cvs",     l:"CVS",         opts:["Normal","Murmur present","S3/S4 gallop","Irregular rhythm","Other"]},
+      {k:"resp",    l:"Respiratory", opts:["Clear bilaterally","Wheeze","Crepitations","Reduced air entry","Stridor","Other"]},
+      {k:"abdomen", l:"Abdomen",     opts:["Soft, non-tender","Tenderness present","Hepatomegaly","Splenomegaly","Ascites","Other"]},
+      {k:"cns",     l:"CNS",         opts:["Alert & oriented","Altered sensorium","Focal deficit","Tremor","Other"]},
+    ]
+  }
+};
+
+const getSpecialtyTemplate = (specialty) => {
+  if (!specialty) return SPECIALTY_TEMPLATES["General Medicine"];
+  const sp = specialty.toLowerCase();
+  const key = Object.keys(SPECIALTY_TEMPLATES).find(k => sp.includes(k.toLowerCase()));
+  return key ? SPECIALTY_TEMPLATES[key] : SPECIALTY_TEMPLATES["General Medicine"];
+};
+
+/* ═══════════════════════════════════════════════════════════
    RX VIEW COMPONENT
 ═══════════════════════════════════════════════════════════ */
 const RxView=({data,pt,doctorName})=>(
@@ -616,6 +1056,7 @@ export default function App() {
     vitals:{pulse:"",bpSys:"",bpDia:"",temp:"",spo2:"",rr:""},
     generalExam:{pallor:"",icterus:"",cyanosis:"",clubbing:"",lymphadenopathy:"",oedema:""},
     systemExam:{cvs:"",resp:"",abdomen:"",cns:""},
+    specialtyExam:{},
     additionalFindings:"",
     workingDiagnosis:"", clinicalImpression:"", diagnosisType:"provisional",
     meds:Array.from({length:10},()=>({drug:"",dose:"",frequency:"",duration:"",route:"Oral",timing:"After food"})),
@@ -1955,7 +2396,11 @@ Jayadev Memorial Rashtrotthana Hospital & Research Centre`
     const ensureMeds=arr=>{const a=Array.isArray(arr)?arr:[];while(a.length<10)a.push(MED_BLANK());return a.slice(0,10);};
     const meds=ensureMeds(physNotes.meds);
 
-    const DRUGS=["— Select —","Metformin 500mg (Glycomet)","Metformin 1000mg (Glycomet SR)","Glimepiride 1mg (Amaryl)","Glimepiride 2mg (Amaryl)","Glibenclamide 5mg","Sitagliptin 100mg (Januvia)","Empagliflozin 10mg (Jardiance)","Amlodipine 5mg (Amlodac)","Amlodipine 10mg","Telmisartan 40mg (Telma)","Telmisartan 80mg","Losartan 50mg (Cosart)","Ramipril 2.5mg (Cardace)","Ramipril 5mg","Enalapril 5mg","Metoprolol 25mg (Metolar)","Metoprolol 50mg","Atenolol 50mg","Atorvastatin 10mg (Atorva)","Atorvastatin 20mg","Rosuvastatin 10mg (Rozucor)","Aspirin 75mg (Ecosprin)","Clopidogrel 75mg","Pantoprazole 40mg (Pan)","Omeprazole 20mg (Omez)","Ranitidine 150mg","Levothyroxine 25mcg (Thyronorm)","Levothyroxine 50mcg","Levothyroxine 75mcg","Levothyroxine 100mcg","Vitamin D3 60000 IU (Calcirol)","Vitamin B12 1500mcg (Mecobalamin)","Iron + Folic Acid (Feronia-XT)","Calcium + D3 (Shelcal)","Paracetamol 500mg (Crocin)","Paracetamol 650mg (Dolo)","Ibuprofen 400mg (Brufen)","Azithromycin 500mg (Azithral)","Amoxicillin 500mg","Metronidazole 400mg","Furosemide 40mg (Lasix)","Spironolactone 25mg (Aldactone)","Pregabalin 75mg","Gabapentin 300mg","Alprazolam 0.25mg","Escitalopram 10mg","Other (write below)"];
+    /* ── Specialty template (drives diagnoses, drugs, investigations, advice, exam) ── */
+    const tpl = getSpecialtyTemplate(user.specialty);
+    const DRUGS   = tpl.drugs;
+    const ADVICE_OPTS = tpl.advice;
+
     const FREQ=["OD – Once daily","BD – Twice daily","TID – Three times daily","QID – Four times daily","HS – At bedtime","SOS – As needed","Weekly once","Alternate days"];
     const DUR=["3 days","5 days","7 days","10 days","2 weeks","1 month","3 months","6 months","Ongoing","Till review"];
     const ROUTE=["Oral","IV","IM","SC","Topical","Inhaled","Sublingual"];
@@ -1964,7 +2409,6 @@ Jayadev Memorial Rashtrotthana Hospital & Research Centre`
     const RESP_OPTS=["Clear bilaterally","Wheeze","Crepitations","Reduced air entry","Stridor","Other"];
     const ABD_OPTS=["Soft, non-tender","Tenderness present","Hepatomegaly","Splenomegaly","Ascites","Other"];
     const CNS_OPTS=["Alert & oriented","Altered sensorium","Focal deficit","Tremor","Other"];
-    const ADVICE_OPTS=["Low salt diet","Low fat diet","Diabetic diet","Avoid refined sugars","Daily walking 30 min","Yoga / stretching","Avoid NSAIDs","Avoid alcohol","Quit smoking","Weight reduction target","Regular BP monitoring","Regular blood sugar monitoring","Stress management","Adequate hydration"];
 
     const setVital=(k,v)=>setPhysNotes(p=>({...p,vitals:{...(p.vitals||{}),k_:v,[k]:v}}));
     const setGE=(k,v)=>setPhysNotes(p=>({...p,generalExam:{...(p.generalExam||{}),[k]:v}}));
@@ -2044,7 +2488,10 @@ Jayadev Memorial Rashtrotthana Hospital & Research Centre`
                 <div style={{textAlign:"right"}}>
                   <div style={{fontSize:13,fontWeight:700,color:C.teal700}}>OPD Case Sheet</div>
                   <div style={{fontSize:11,color:C.muted}}>{user.name} · {user.specialty}</div>
-                  <div style={{fontSize:11,color:C.muted}}>{new Date().toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"})} · {new Date().toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit"})}</div>
+                  <div className="no-print" style={{fontSize:10,marginTop:2,display:"inline-flex",alignItems:"center",gap:4,background:C.badge,color:C.teal700,padding:"2px 8px",borderRadius:10,fontWeight:600}}>
+                    {tpl.icon} {tpl.label} template
+                  </div>
+                  <div style={{fontSize:11,color:C.muted,marginTop:2}}>{new Date().toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"})} · {new Date().toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit"})}</div>
                 </div>
               </div>
 
@@ -2127,6 +2574,26 @@ Jayadev Memorial Rashtrotthana Hospital & Research Centre`
                   ))}
                 </div>
 
+                {/* SPECIALTY EXAMINATION */}
+                {tpl.examFields&&tpl.examFields.length>0&&<>
+                  <div style={{fontSize:11,fontWeight:700,color:C.teal700,marginBottom:6,textTransform:"uppercase",letterSpacing:0.5,marginTop:8}}>
+                    {tpl.icon} {tpl.label} – Specialty Examination
+                  </div>
+                  <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:6,marginBottom:8}}>
+                    {tpl.examFields.map(({k,l,opts})=>(
+                      <div key={k}>
+                        <div style={{fontSize:10,color:C.muted,marginBottom:2}}>{l}</div>
+                        <select className="si" style={{fontSize:11,padding:"4px 6px"}}
+                          value={(physNotes.specialtyExam||{})[k]||""}
+                          onChange={e=>setPhysNotes(p=>({...p,specialtyExam:{...(p.specialtyExam||{}),[k]:e.target.value}}))}>
+                          <option value="">—</option>
+                          {opts.map(o=><option key={o} value={o}>{o}</option>)}
+                        </select>
+                      </div>
+                    ))}
+                  </div>
+                </>}
+
                 {/* GENERAL EXAM — comprehensive only */}
                 {(physNotes.examinationType||"simple")==="comprehensive"&&<>
                   <div style={{fontSize:11,fontWeight:700,color:C.teal700,marginBottom:6,textTransform:"uppercase",letterSpacing:0.5}}>General Examination</div>
@@ -2166,6 +2633,15 @@ Jayadev Memorial Rashtrotthana Hospital & Research Centre`
 
                 <div style={{fontSize:11,fontWeight:700,color:C.teal700,marginBottom:4}}>Additional Findings</div>
                 <textarea className="ti" rows={2} placeholder="Additional examination findings…" value={physNotes.additionalFindings||""} onChange={e=>setPhysNotes(p=>({...p,additionalFindings:e.target.value}))} style={{resize:"vertical",fontSize:12}}/>
+                {/* Specialty exam – print summary */}
+                {tpl.examFields&&tpl.examFields.length>0&&Object.values(physNotes.specialtyExam||{}).some(Boolean)&&(
+                  <div className="print-only" style={{marginTop:8,borderTop:`1px solid ${C.divider}`,paddingTop:6}}>
+                    <div style={{fontSize:11,fontWeight:700,color:C.teal700,marginBottom:4}}>{tpl.icon} {tpl.label} Examination</div>
+                    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:"2px 16px",fontSize:12}}>
+                      {tpl.examFields.map(({k,l})=>{const v=(physNotes.specialtyExam||{})[k];return v?<div key={k}><strong>{l}:</strong> {v}</div>:null;})}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* WORKING DIAGNOSIS */}
@@ -2186,7 +2662,7 @@ Jayadev Memorial Rashtrotthana Hospital & Research Centre`
                 </div>
                 <select className="si" style={{marginBottom:8}} value={physNotes.workingDiagnosis||""} onChange={e=>setPhysNotes(p=>({...p,workingDiagnosis:e.target.value}))}>
                   <option value="">— Select diagnosis —</option>
-                  {["Type 2 Diabetes","Type 1 Diabetes","Hypertension","Hypothyroidism","Hyperthyroidism","Coronary artery disease / IHD","Heart failure","Asthma","COPD","Osteoarthritis / Arthritis","Obesity / Overweight","PCOS / PCOD","Chronic kidney disease","Fatty liver / NAFLD","Anaemia","Anxiety / Depression","Migraine","Gout","Metabolic syndrome","Dyslipidaemia","Pre-diabetes / IGT","Other (specify below)"].map(d=><option key={d} value={d}>{d}</option>)}
+                  {tpl.diagnoses.map(d=><option key={d} value={d}>{d}</option>)}
                 </select>
                 <textarea className="ti" rows={2} placeholder="Clinical impression / additional diagnosis notes…" value={physNotes.clinicalImpression||""} onChange={e=>setPhysNotes(p=>({...p,clinicalImpression:e.target.value}))} style={{resize:"vertical",fontSize:12}}/>
               </div>
@@ -2252,7 +2728,7 @@ Jayadev Memorial Rashtrotthana Hospital & Research Centre`
               <div className="card" style={{marginBottom:10,padding:"10px 14px"}}>
                 <div style={{fontSize:12,fontWeight:700,color:C.teal900,marginBottom:8,borderBottom:`1px solid ${C.divider}`,paddingBottom:4}}>INVESTIGATIONS</div>
                 <div style={{display:"flex",flexWrap:"wrap",gap:6,marginBottom:8}}>
-                  {["CBC","Blood Sugar F/PP","HbA1c","Lipid Profile","LFT","RFT / Creatinine","Thyroid (TSH)","ECG","2D Echo","Chest X-Ray","USG Abdomen","Vitamin D","Vitamin B12","Urine R/M","BMD","PSA","Pap smear","Mammogram"].map(inv=>{
+                  {tpl.investigations.map(inv=>{
                     const on=(physNotes.investigations||[]).includes(inv);
                     return(
                       <div key={inv} onClick={()=>setPhysNotes(p=>{const a=p.investigations||[];return{...p,investigations:on?a.filter(x=>x!==inv):[...a,inv]};})}
