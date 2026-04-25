@@ -106,12 +106,12 @@ const SEED_DOCTORS = [
   {id:"DR002",name:"Dr. Priya Menon",specialty:"General Medicine & Lifestyle",dept:"Lifestyle Medicine",type:"lifestyle",password:"jmrh002"},
   {id:"DR003",name:"Dr. Karthik Rao",specialty:"Internal Medicine & Lifestyle",dept:"Lifestyle Medicine",type:"lifestyle",password:"jmrh003"},
   {id:"DR004",name:"Dr. Suma Nair",specialty:"Ayurveda & Lifestyle",dept:"Lifestyle Medicine",type:"lifestyle",password:"jmrh004"},
-  // Primary consultants — listed for appointment assignment only
-  {id:"PC001",name:"Dr. Ramesh Babu",specialty:"Cardiology",dept:"Cardiology",type:"primary",password:""},
-  {id:"PC002",name:"Dr. Kavitha Sharma",specialty:"Endocrinology",dept:"Endocrinology",type:"primary",password:""},
-  {id:"PC003",name:"Dr. Suresh Nair",specialty:"General Medicine",dept:"Medicine",type:"primary",password:""},
-  {id:"PC004",name:"Dr. Anitha Reddy",specialty:"Orthopaedics",dept:"Orthopaedics",type:"primary",password:""},
-  {id:"PC005",name:"Dr. Vinod Kumar",specialty:"Neurology",dept:"Neurology",type:"primary",password:""},
+  // Primary consultants — can log in to view lifestyle prescriptions for their referred patients
+  {id:"PC001",name:"Dr. Ramesh Babu",specialty:"Cardiology",dept:"Cardiology",type:"primary",password:"jmrh@pc01"},
+  {id:"PC002",name:"Dr. Kavitha Sharma",specialty:"Endocrinology",dept:"Endocrinology",type:"primary",password:"jmrh@pc02"},
+  {id:"PC003",name:"Dr. Suresh Nair",specialty:"General Medicine",dept:"Medicine",type:"primary",password:"jmrh@pc03"},
+  {id:"PC004",name:"Dr. Anitha Reddy",specialty:"Orthopaedics",dept:"Orthopaedics",type:"primary",password:"jmrh@pc04"},
+  {id:"PC005",name:"Dr. Vinod Kumar",specialty:"Neurology",dept:"Neurology",type:"primary",password:"jmrh@pc05"},
 ];
 
 const SPECIALTIES = [
@@ -438,8 +438,10 @@ body{background:${C.bg};font-family:'DM Sans',sans-serif;color:${C.text};-webkit
 /* PRINT */
 @media print{
   body *{visibility:hidden;}
-  #print-rx,#print-rx *{visibility:visible;}
-  #print-rx{position:fixed;top:0;left:0;width:100%;background:white;padding:20px 28px;}
+  body[data-print="rx"] #print-rx,body[data-print="rx"] #print-rx *{visibility:visible;}
+  body[data-print="rx"] #print-rx{position:fixed;top:0;left:0;width:100%;background:white;padding:20px 28px;}
+  body[data-print="opd"] #print-opd,body[data-print="opd"] #print-opd *{visibility:visible;}
+  body[data-print="opd"] #print-opd{position:fixed;top:0;left:0;width:100%;background:white;padding:20px 28px;}
   .no-print{display:none!important;}
   .rx-wrap{border:1px solid #ccc!important;}
   @page{margin:10mm 12mm;}
@@ -452,6 +454,10 @@ body{background:${C.bg};font-family:'DM Sans',sans-serif;color:${C.text};-webkit
   .page{padding:12px;}
   .prog-dots,.nav-r .ntab{display:none;}
   .role-grid{grid-template-columns:1fr;}
+  .tbl thead{display:none;}
+  .tbl tr{display:block;border:1px solid ${C.border};border-radius:10px;margin-bottom:10px;padding:10px 12px;background:${C.card};}
+  .tbl td{display:flex;justify-content:space-between;align-items:flex-start;padding:4px 0;border:none;font-size:13px;}
+  .tbl td:before{content:attr(data-label);font-size:11px;color:${C.muted};font-weight:600;margin-right:8px;white-space:nowrap;}
 }
 `;
 
@@ -483,6 +489,9 @@ const riskClass=r=>`risk-${r||"Low"}`;
 const genCode=()=>Math.random().toString(36).substr(2,6).toUpperCase();
 const fmtDate=d=>new Date(d).toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"});
 const STEPS=["Patient Info","Diet","Activity","Sleep","Bowel & Urine","Appetite & Stress","Habits","Goals"];
+const INVESTIGATION_OPTS=["CBC","Blood Sugar F/PP","HbA1c","Lipid Profile","LFT","RFT / Creatinine","Thyroid (TSH)","ECG","2D Echo","Chest X-Ray","USG Abdomen","Vitamin D","Vitamin B12","Urine R/M","BMD","Other"];
+const FOLLOWUP_OPTS=["1 week","2 weeks","4 weeks","6 weeks","3 months","6 months"];
+const TIME_SUGGESTIONS=["7:30 AM","7:45 AM","8:00 AM","8:15 AM","8:30 AM","8:45 AM","9:00 AM","9:15 AM","9:30 AM","9:45 AM","10:00 AM","10:15 AM","10:30 AM","10:45 AM","11:00 AM","11:15 AM","11:30 AM","11:45 AM","12:00 PM","12:15 PM","12:30 PM","12:45 PM","1:00 PM","1:15 PM","1:30 PM","2:00 PM","2:15 PM","2:30 PM","2:45 PM","3:00 PM","3:15 PM","3:30 PM","3:45 PM","4:00 PM","4:15 PM","4:30 PM","4:45 PM","5:00 PM","5:15 PM","5:30 PM","5:45 PM","6:00 PM","6:30 PM","7:00 PM"];
 
 /* ═══════════════════════════════════════════════════════════
    RX VIEW COMPONENT
@@ -543,6 +552,88 @@ const RxView=({data,pt,doctorName})=>(
 );
 
 /* ═══════════════════════════════════════════════════════════
+   OPD CONSULTANT NOTES SHEET
+═══════════════════════════════════════════════════════════ */
+const OpdSheet=({rec,notes,physicianName,specialty})=>{
+  const pt=rec?.patient||{};
+  const appt=rec?.apptData||{};
+  return(
+    <div id="print-opd" style={{background:"white",padding:"20px 28px",fontFamily:"sans-serif"}}>
+      {/* Header */}
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:12}}>
+        <img src={LOGO_HORIZONTAL} alt="JMRH" style={{height:48,width:"auto"}}/>
+        <div style={{textAlign:"right"}}>
+          <div style={{fontSize:13,fontWeight:700,color:C.teal700}}>OPD Consultation Notes</div>
+          <div style={{fontSize:11,color:C.muted}}>Primary Physician — Confidential</div>
+        </div>
+      </div>
+      <div style={{borderTop:`2px solid ${C.teal700}`,marginBottom:14}}/>
+
+      {/* Patient summary */}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6,background:C.teal50,borderRadius:8,padding:"10px 14px",marginBottom:14,fontSize:12}}>
+        <div><strong>Patient:</strong> {pt.name}</div>
+        <div><strong>UHID:</strong> {pt.uhid}</div>
+        <div><strong>Age / Gender:</strong> {pt.age}yr · {pt.gender}</div>
+        <div><strong>Date:</strong> {new Date().toLocaleDateString("en-IN",{day:"numeric",month:"short",year:"numeric"})}</div>
+        <div><strong>Referring Specialty:</strong> {appt.primarySpecialty||"—"}</div>
+        <div><strong>Consultant:</strong> {physicianName}</div>
+        <div style={{gridColumn:"span 2"}}><strong>Chief Complaint:</strong> {pt.chiefComplaint||appt.chiefComplaint||"—"}</div>
+      </div>
+
+      {/* Diagnosis */}
+      <div style={{marginBottom:12}}>
+        <div style={{fontSize:11,fontWeight:700,color:C.teal700,textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Diagnosis</div>
+        <div style={{minHeight:32,borderBottom:`1px solid ${C.border}`,fontSize:13,paddingBottom:4}}>{notes.diagnosis||""}</div>
+      </div>
+
+      {/* Investigations */}
+      {notes.investigations?.length>0&&<div style={{marginBottom:12}}>
+        <div style={{fontSize:11,fontWeight:700,color:C.teal700,textTransform:"uppercase",letterSpacing:1,marginBottom:6}}>Investigations Advised</div>
+        <div style={{display:"flex",flexWrap:"wrap",gap:6}}>
+          {notes.investigations.map(inv=>(
+            <span key={inv} style={{background:C.teal50,border:`1px solid ${C.teal400}`,borderRadius:6,padding:"3px 10px",fontSize:12}}>{inv}</span>
+          ))}
+        </div>
+      </div>}
+
+      {/* Medications */}
+      <div style={{marginBottom:12}}>
+        <div style={{fontSize:11,fontWeight:700,color:C.teal700,textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Medications / Rx</div>
+        <div style={{minHeight:48,borderBottom:`1px solid ${C.border}`,fontSize:13,whiteSpace:"pre-wrap",paddingBottom:4}}>{notes.medications||""}</div>
+      </div>
+
+      {/* Physician Notes */}
+      <div style={{marginBottom:12}}>
+        <div style={{fontSize:11,fontWeight:700,color:C.teal700,textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Physician Notes</div>
+        <div style={{minHeight:56,borderBottom:`1px solid ${C.border}`,fontSize:13,whiteSpace:"pre-wrap",paddingBottom:4}}>{notes.notes||""}</div>
+      </div>
+
+      {/* Follow-up + Lifestyle risk */}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:16}}>
+        <div>
+          <div style={{fontSize:11,fontWeight:700,color:C.teal700,textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Follow-up</div>
+          <div style={{fontSize:14,fontWeight:600}}>{notes.followUp||"—"}</div>
+        </div>
+        <div>
+          <div style={{fontSize:11,fontWeight:700,color:C.teal700,textTransform:"uppercase",letterSpacing:1,marginBottom:4}}>Lifestyle Risk (from Lifestyle Rx)</div>
+          <div style={{fontSize:14,fontWeight:600}}>{rec?.rx?.riskCategory||"—"}</div>
+        </div>
+      </div>
+
+      {/* Signature */}
+      <div style={{borderTop:`1px solid ${C.border}`,paddingTop:14,display:"flex",justifyContent:"space-between",fontSize:11,color:C.muted}}>
+        <div>Jayadev Memorial Rashtrotthana Hospital & Research Centre, Bengaluru</div>
+        <div style={{textAlign:"right"}}>
+          <div style={{borderTop:"1px solid #999",width:160,marginBottom:4}}/>
+          <div>{physicianName}</div>
+          <div>{specialty}</div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/* ═══════════════════════════════════════════════════════════
    MAIN APP
 ═══════════════════════════════════════════════════════════ */
 export default function App() {
@@ -570,6 +661,9 @@ export default function App() {
   const [copied,setCopied]=useState(false);
   const [editedRx,setEditedRx]=useState(null);   // prescription being reviewed/edited
   const [editingRecId,setEditingRecId]=useState(null); // null=new, id=updating existing
+
+  const printRx=()=>{document.body.setAttribute("data-print","rx");window.print();setTimeout(()=>document.body.removeAttribute("data-print"),500);};
+  const printOpd=()=>{document.body.setAttribute("data-print","opd");window.print();setTimeout(()=>document.body.removeAttribute("data-print"),500);};
 
   // Form
   const ea=(v)=>Array.isArray(v)?v:[];  // ensureArray — guards against storage returning non-arrays
@@ -601,6 +695,11 @@ export default function App() {
   // New doctor form
   const [newDoc,setNewDoc]=useState({id:"",name:"",specialty:"",dept:"",type:"primary",password:""});
   const [addDocErr,setAddDocErr]=useState("");
+
+  // Physician OPD notes form
+  const BLANK_PHY_NOTES=()=>({diagnosis:"",investigations:[],medications:"",followUp:"",notes:""});
+  const [physNotes,setPhysNotes]=useState(BLANK_PHY_NOTES());
+  const [physNotesSaved,setPhysNotesSaved]=useState(false);
 
   useEffect(()=>{
     initStorage();
@@ -662,6 +761,7 @@ export default function App() {
       setAllArchive(allRecs);
       if(user?.role==="doctor") setArchive(allRecs.filter(r=>r.doctorId===user.id));
       else if(user?.role==="patient") setArchive(allRecs.filter(r=>r.patient?.uhid===user.id));
+      else if(user?.role==="physician") setArchive(allRecs.filter(r=>r.apptData?.primaryDoctorId===user.id));
       else setArchive(allRecs);
     } catch(_) {}
   };
@@ -688,7 +788,17 @@ export default function App() {
     if(!doc) { setAuthErr("Incorrect credentials. Check your Doctor ID and password."); return; }
     setUser({id:doc.id, name:doc.name, role:"doctor", specialty:doc.specialty});
   };
-  const loginPatient=async()=>{
+  const loginPhysician=async()=>{
+    setAuthErr("");
+    let docs = [...SEED_DOCTORS];
+    try {
+      const stored = await storage.get("doctors");
+      if(stored) docs = JSON.parse(stored.value);
+    } catch(_) {}
+    const doc = docs.find(d => d.id === selDoc && d.type === "primary" && d.password === pwd);
+    if(!doc) { setAuthErr("Incorrect credentials. Check your Doctor ID and password."); return; }
+    setUser({id:doc.id, name:doc.name, role:"physician", specialty:doc.specialty});
+  };
     setAuthErr("");
     const code = ptCode.toUpperCase().trim();
     // Try appointment code
@@ -734,6 +844,12 @@ export default function App() {
     }
     if(newAppt.visitType==="specialist"&&!newAppt.primarySpecialty){
       setErr("Please select a specialty for specialist appointment.");return;
+    }
+    if(newAppt.visitType==="specialist"&&!newAppt.primaryDoctorId){
+      setErr("Please assign a primary consultant before registering.");return;
+    }
+    if(!newAppt.lifestyleDoctorId){
+      setErr("Please assign a lifestyle doctor before registering.");return;
     }
     const code=genCode();
     const uhid=newAppt.patientUhid||`RH-${Date.now().toString().slice(-5)}`;
@@ -783,6 +899,20 @@ export default function App() {
       const updated=docs.filter(d=>d.id!==id);
       await storage.set("doctors",JSON.stringify(updated));
       setDoctors(updated);
+    }catch(_){}
+  };
+
+  /* ── PHYSICIAN NOTES ── */
+  const savePhysicianNotes=async()=>{
+    if(!viewRec)return;
+    const updated={...viewRec,physicianNotes:physNotes};
+    try{
+      await storage.set(viewRec.id,JSON.stringify(updated));
+      setViewRec(updated);
+      setAllArchive(prev=>prev.map(r=>r.id===viewRec.id?updated:r));
+      setArchive(prev=>prev.map(r=>r.id===viewRec.id?updated:r));
+      setPhysNotesSaved(true);
+      setTimeout(()=>setPhysNotesSaved(false),2500);
     }catch(_){}
   };
 
@@ -1004,7 +1134,7 @@ Respond ONLY with a single raw JSON object. No markdown. No explanation. Strict 
               <div className="auth-h">JMRH Patient Services</div>
               <div className="auth-sub">Free consultations for all patients · Select your role</div>
               <div className="role-grid">
-                {[{r:"admin",i:"🛡️",l:"Admin",d:"Manage doctors & appointments"},{r:"doctor",i:"👨‍⚕️",l:"Doctor",d:"Consultations & patient records"},{r:"patient",i:"🧑‍💼",l:"Patient",d:"Fill health form & view records"}].map(x=>(
+                {[{r:"admin",i:"🛡️",l:"Admin",d:"Manage doctors & appointments"},{r:"doctor",i:"🌿",l:"Lifestyle Doctor",d:"Consultations & patient records"},{r:"physician",i:"👨‍⚕️",l:"Primary Physician",d:"View lifestyle Rx for your patients"},{r:"patient",i:"🧑‍💼",l:"Patient",d:"Fill health form & view records"}].map(x=>(
                   <div key={x.r} className={`role-btn${authRole===x.r?" sel":""}`} onClick={()=>{setAuthRole(x.r);setAuthErr("");}}>
                     <div className="ri">{x.i}</div><div className="rl">{x.l}</div><div className="rd">{x.d}</div>
                   </div>
@@ -1038,6 +1168,23 @@ Respond ONLY with a single raw JSON object. No markdown. No explanation. Strict 
               {authErr&&<div className="err-box">{authErr}</div>}
               <button className="btn btn-teal btn-full" onClick={loginDoctor} disabled={!selDoc||!pwd}>Sign In →</button>
               <div className="auth-note" style={{marginTop:12}}>Demo: DR001 → jmrh001 · DR002 → jmrh002</div>
+            </>}
+
+            {authRole==="physician"&&<>
+              <div className="auth-h">Primary Physician Login</div>
+              <div className="auth-sub">Select your name and enter your password</div>
+              {doctors.filter(d=>d.type==="primary"&&d.password).map(d=>(
+                <div key={d.id} className={`doc-opt${selDoc===d.id?" sel":""}`} onClick={()=>setSelDoc(d.id)}>
+                  <div className="dav">{initials(d.name)}</div>
+                  <div><div style={{fontSize:14,fontWeight:600,color:C.text}}>{d.name}</div><div style={{fontSize:11,color:C.muted}}>{d.specialty}</div></div>
+                </div>
+              ))}
+              <div className="fg" style={{marginTop:8}}><div className="fl">Password</div>
+                <input className="ti" type="password" placeholder="Enter your password" value={pwd} onChange={e=>setPwd(e.target.value)} onKeyDown={e=>e.key==="Enter"&&loginPhysician()}/>
+              </div>
+              {authErr&&<div className="err-box">{authErr}</div>}
+              <button className="btn btn-teal btn-full" onClick={loginPhysician} disabled={!selDoc||!pwd}>Sign In →</button>
+              <div className="auth-note" style={{marginTop:12}}>Demo: PC001 → jmrh@pc01</div>
             </>}
 
             {authRole==="patient"&&<>
@@ -1694,7 +1841,7 @@ Jayadev Memorial Rashtrotthana Hospital & Research Centre`
               <div>
                 <div className="rx-actions no-print">
                   <button className="btn btn-ghost" onClick={()=>setPtTab(archive.length>2?"prescriptions":"home")}>← Back</button>
-                  <button className="btn btn-rust" onClick={()=>window.print()}>🖨️ Print / Save PDF</button>
+                  <button className="btn btn-rust" onClick={printRx}>🖨️ Print / Save PDF</button>
                 </div>
                 <RxView data={viewRec.rx} pt={viewRec.patient} doctorName={viewRec.doctorName}/>
               </div>
@@ -1867,6 +2014,145 @@ Jayadev Memorial Rashtrotthana Hospital & Research Centre`
     return null;
   };
 
+  /* ── PRIMARY PHYSICIAN PORTAL ── */
+  if(user.role==="physician"){
+    const physRecs=archive; // already filtered by primaryDoctorId in loadData
+    return(
+      <>
+        <style>{G}</style>
+        <Modal/>
+        <div style={{background:C.bg,minHeight:"100vh"}}>
+          <div className="nav no-print">
+            <HospLogo variant="nav"/>
+            <div className="nav-r">
+              <div className="nav-av">{initials(user.name)}</div>
+              <div className="nav-uname">{user.name.split(" ").slice(0,2).join(" ")}</div>
+              <button className="nbtn" onClick={()=>{setUser(null);setArchive([]);setViewRec(null);}}>Sign Out</button>
+            </div>
+          </div>
+
+          {/* LIST VIEW */}
+          {!viewRec&&<div className="page fade">
+            <div style={{marginBottom:20}}>
+              <div style={{fontSize:13,color:C.muted}}>Lifestyle prescriptions for your referred patients</div>
+              <div style={{fontFamily:"'Playfair Display',serif",fontSize:26,color:C.teal900}}>{user.name}</div>
+              <div style={{fontSize:12,color:C.muted,marginTop:2}}>{user.specialty}</div>
+            </div>
+            <div className="stats-row">
+              <div className="stat-box"><div className="stat-num">{physRecs.length}</div><div className="stat-label">Consultations</div></div>
+              <div className="stat-box"><div className="stat-num" style={{color:C.danger}}>{physRecs.filter(r=>r.rx?.riskCategory==="High").length}</div><div className="stat-label">High Risk</div></div>
+              <div className="stat-box"><div className="stat-num" style={{color:C.warn}}>{physRecs.filter(r=>r.rx?.riskCategory==="Moderate").length}</div><div className="stat-label">Moderate</div></div>
+              <div className="stat-box"><div className="stat-num" style={{color:C.success}}>{physRecs.filter(r=>r.rx?.riskCategory==="Low").length}</div><div className="stat-label">Low Risk</div></div>
+            </div>
+            {physRecs.length===0
+              ?<div className="card" style={{textAlign:"center",padding:"48px 20px",color:C.muted}}>
+                <div style={{fontSize:36,marginBottom:10}}>📋</div>
+                <div style={{fontSize:16,fontWeight:600,marginBottom:4}}>No lifestyle consultations yet</div>
+                <div style={{fontSize:13}}>Consultations for your referred patients will appear here once completed by the Lifestyle Medicine team.</div>
+              </div>
+              :<>
+                <div className="arch-bar">
+                  <input className="arch-search" placeholder="Search by name or UHID…" value={search} onChange={e=>setSearch(e.target.value)}/>
+                </div>
+                <div className="arch-grid">
+                  {physRecs.filter(r=>{const q=search.toLowerCase();return !q||r.patient?.name?.toLowerCase().includes(q)||r.patient?.uhid?.toLowerCase().includes(q);}).map((r,i)=>(
+                    <div key={i} className="arch-card" onClick={()=>{setViewRec(r);setPhysNotes(r.physicianNotes||BLANK_PHY_NOTES());}} style={{cursor:"pointer"}}>
+                      <div className="arch-name">{r.patient?.name}</div>
+                      <div className="arch-diag">{r.patient?.diagnosis||"—"}</div>
+                      <div className="arch-meta">
+                        <div className="arch-date">{fmtDate(r.savedAt)}</div>
+                        {r.rx?.riskCategory&&<span className={`risk-badge ${riskClass(r.rx.riskCategory)}`}>{r.rx.riskCategory}</span>}
+                      </div>
+                      <div style={{fontSize:11,color:C.muted,marginTop:5}}>UHID: {r.patient?.uhid} · {r.patient?.age}yr · {r.patient?.gender}</div>
+                      <div style={{fontSize:11,color:C.teal700,marginTop:4}}>🌿 {r.doctorName?.split(" ").slice(0,3).join(" ")}</div>
+                      {r.physicianNotes?.diagnosis&&<div style={{fontSize:10,color:C.success,marginTop:3}}>✓ Notes saved</div>}
+                    </div>
+                  ))}
+                </div>
+              </>
+            }
+          </div>}
+
+          {/* DETAIL VIEW — OPD Notes only (no lifestyle Rx visible here) */}
+          {viewRec&&<div className="page fade">
+            <div className="nav-row no-print" style={{marginBottom:16}}>
+              <button className="btn btn-ghost" onClick={()=>{setViewRec(null);setPhysNotesSaved(false);}}>← Back</button>
+              <button className="btn btn-rust" onClick={printOpd}>🖨 Print OPD Sheet</button>
+            </div>
+
+            {/* OPD Notes Sheet — rendered for both screen and print */}
+            <OpdSheet rec={viewRec} notes={physNotes} physicianName={user.name} specialty={user.specialty}/>
+
+            {/* CONSULTANT NOTES FORM — screen only */}
+            <div className="card no-print" style={{marginTop:24,borderColor:C.teal400}}>
+              <div style={{fontFamily:"'Playfair Display',serif",fontSize:18,color:C.teal900,marginBottom:4}}>📝 Consultant Notes</div>
+              <div style={{fontSize:12,color:C.muted,marginBottom:16}}>Fill in your notes below — click Save, then Print OPD Sheet</div>
+
+              {/* Diagnosis */}
+              <div className="fg"><div className="fl">Diagnosis</div>
+                <input className="ti" placeholder="Enter your clinical diagnosis…" value={physNotes.diagnosis}
+                  onChange={e=>setPhysNotes({...physNotes,diagnosis:e.target.value})}/>
+              </div>
+
+              {/* Investigations */}
+              <div className="fg">
+                <div className="fl">Investigations Advised</div>
+                <div style={{display:"flex",flexWrap:"wrap",gap:6,marginTop:4}}>
+                  {INVESTIGATION_OPTS.map(inv=>{
+                    const on=(physNotes.investigations||[]).includes(inv);
+                    return(
+                      <div key={inv} onClick={()=>{
+                        const arr=physNotes.investigations||[];
+                        setPhysNotes({...physNotes,investigations:on?arr.filter(x=>x!==inv):[...arr,inv]});
+                      }} style={{padding:"5px 12px",borderRadius:20,border:`1.5px solid ${on?C.teal700:C.border}`,
+                        background:on?C.teal50:C.bg,cursor:"pointer",fontSize:12,color:on?C.teal900:C.text,
+                        fontWeight:on?600:400,transition:"all 0.15s"}}>
+                        {on?"✓ ":""}{inv}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Medications */}
+              <div className="fg"><div className="fl">Medications / Rx</div>
+                <textarea className="ti" rows={4} placeholder="List medications, doses, frequency…"
+                  value={physNotes.medications} onChange={e=>setPhysNotes({...physNotes,medications:e.target.value})}
+                  style={{resize:"vertical"}}/>
+              </div>
+
+              {/* Physician Notes — free text */}
+              <div className="fg"><div className="fl">Physician Notes</div>
+                <textarea className="ti" rows={4}
+                  placeholder="Clinical observations, lifestyle integration notes, referrals, special instructions…"
+                  value={physNotes.notes} onChange={e=>setPhysNotes({...physNotes,notes:e.target.value})}
+                  style={{resize:"vertical"}}/>
+              </div>
+
+              {/* Follow-up */}
+              <div className="fg"><div className="fl">Follow-up</div>
+                <select className="si" value={physNotes.followUp} onChange={e=>setPhysNotes({...physNotes,followUp:e.target.value})}>
+                  <option value="">Select follow-up interval…</option>
+                  {FOLLOWUP_OPTS.map(f=><option key={f} value={f}>{f}</option>)}
+                </select>
+              </div>
+
+              {physNotesSaved&&<div className="success-box">✓ Notes saved</div>}
+              <div style={{display:"flex",gap:10}}>
+                <button className="btn btn-lime" style={{flex:1,justifyContent:"center",padding:"12px"}} onClick={savePhysicianNotes}>
+                  💾 Save Notes
+                </button>
+                <button className="btn btn-rust" style={{flex:1,justifyContent:"center",padding:"12px"}} onClick={printOpd}>
+                  🖨 Print OPD Sheet
+                </button>
+              </div>
+            </div>
+          </div>}
+        </div>
+      </>
+    );
+  }
+
   /* ── DOCTOR PORTAL ── */
   if(user.role==="doctor"){
     const pendingAppts=appointments.filter(a=>a.doctorId===user.id&&(a.status==="pending"||a.status==="form_filled"));
@@ -1986,12 +2272,11 @@ Jayadev Memorial Rashtrotthana Hospital & Research Centre`
             <div className="rx-actions no-print">
               <button className="btn btn-ghost" onClick={()=>setTab("archive")}>← Archive</button>
               <button className="btn btn-teal" onClick={()=>{setEditedRx({...viewRec.rx,shloka:{...viewRec.rx.shloka},threeRx:[...(viewRec.rx.threeRx||[])]});setEditingRecId(viewRec.id);preLoadFromAppt(viewRec.apptData||{patientUhid:viewRec.patient?.uhid,patientName:viewRec.patient?.name,patientDemographics:viewRec.patient,patientMedical:viewRec.patient,preFormData:viewRec.formData,code:viewRec.apptData?.code});setTab("review");}}>✎ Edit Prescription</button>
-              <button className="btn btn-rust" onClick={()=>window.print()}>🖨️ Print / PDF</button>
+              <button className="btn btn-rust" onClick={printRx}>🖨️ Print / PDF</button>
               <button className="btn btn-lime" onClick={()=>setModal({type:"his",data:viewRec})}>📤 HIS Export</button>
               <button className="btn btn-ghost" style={{color:C.danger,borderColor:C.danger}} onClick={async()=>{if(window.confirm("Delete?"))try{await storage.delete(viewRec.id);await loadData();setViewRec(null);setTab("archive");}catch(_){}}}>🗑</button>
             </div>
             <RxView data={viewRec.rx} pt={viewRec.patient} doctorName={viewRec.doctorName}/>
-          </div>}
 
           {tab==="review"&&editedRx&&<div className="page fade">
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16,flexWrap:"wrap",gap:10}}>
@@ -2196,11 +2481,12 @@ Jayadev Memorial Rashtrotthana Hospital & Research Centre`
                     {SPECIALTIES.map(s=><option key={s} value={s}>{s}</option>)}
                   </select>
                 </div>
-                <div><div className="fl">Consultant (optional)</div>
+                <div><div className="fl">Consultant *</div>
                   <select className="si" value={newAppt.primaryDoctorId} onChange={e=>setNewAppt({...newAppt,primaryDoctorId:e.target.value})}>
-                    <option value="">Any available</option>
+                    <option value="">— Select consultant —</option>
                     {doctors.filter(d=>(d.type==="primary"||d.type==="both")&&(!newAppt.primarySpecialty||d.specialty===newAppt.primarySpecialty||d.dept===newAppt.primarySpecialty)).map(d=><option key={d.id} value={d.id}>{d.name}</option>)}
                   </select>
+                  {!newAppt.primaryDoctorId&&newAppt.primarySpecialty&&<div style={{fontSize:11,color:C.rust,marginTop:4}}>⚠ Must assign a consultant before registering</div>}
                 </div>
               </div>
             )}
@@ -2214,7 +2500,10 @@ Jayadev Memorial Rashtrotthana Hospital & Research Centre`
             {newAppt.visitType!=="walkin_mhc"&&(
               <div className="r2 fg">
                 <div><div className="fl">Appointment Date</div><input type="date" className="ti" value={newAppt.date} onChange={e=>setNewAppt({...newAppt,date:e.target.value})}/></div>
-                <div><div className="fl">Time</div><input className="ti" placeholder="e.g. 10:30 AM" value={newAppt.time} onChange={e=>setNewAppt({...newAppt,time:e.target.value})}/></div>
+                <div><div className="fl">Time</div>
+                  <input className="ti" list="time-suggestions" placeholder="e.g. 10:45 AM" value={newAppt.time} onChange={e=>setNewAppt({...newAppt,time:e.target.value})}/>
+                  <datalist id="time-suggestions">{TIME_SUGGESTIONS.map(t=><option key={t} value={t}/>)}</datalist>
+                </div>
               </div>
             )}
             {newAppt.visitType==="walkin_mhc"&&(
