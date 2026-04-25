@@ -1089,6 +1089,13 @@ export default function App() {
 
   useEffect(()=>{
     initStorage();
+    // Deep-link: ?code=XXXXXX lands patient directly on the patient login tab with code pre-filled
+    const params=new URLSearchParams(window.location.search);
+    const deepCode=params.get("code");
+    if(deepCode){
+      setAuthRole("patient");
+      setPtCode(deepCode.toUpperCase().trim());
+    }
   },[]);
   useEffect(()=>{
     if(user) loadData();
@@ -1135,18 +1142,22 @@ export default function App() {
       setAppointments(appts);
     } catch(_) {}
 
-    // RX Records
+    // RX Records (lifestyle) and OPD Records (physician) — both stored in consultations table
     try {
-      const rres=await storage.list("rx:");
+      const rres=await storage.list("rx:");   // returns ALL consultations (rx: + opd:)
       const allRecs=[];
       if(rres) for(const k of rres.keys){
         try{const r=await storage.get(k);if(r)allRecs.push(JSON.parse(r.value));}catch(_){}
       }
       allRecs.sort((a,b)=>new Date(b.savedAt)-new Date(a.savedAt));
+
+      const rxRecs  = allRecs.filter(r=>r.id?.startsWith("rx:"));   // lifestyle Rx only
+      const opdRecs = allRecs.filter(r=>r.id?.startsWith("opd:"));  // physician OPD only
+
       setAllArchive(allRecs);
-      if(user?.role==="doctor") setArchive(allRecs.filter(r=>r.doctorId===user.id));
-      else if(user?.role==="patient") setArchive(allRecs.filter(r=>r.patient?.uhid===user.id));
-      else if(user?.role==="physician") setArchive(allRecs.filter(r=>r.apptData?.primaryDoctorId===user.id));
+      if(user?.role==="doctor")    setArchive(rxRecs.filter(r=>r.doctorId===user.id));
+      else if(user?.role==="patient") setArchive(rxRecs.filter(r=>r.patient?.uhid===user.id));
+      else if(user?.role==="physician") setArchive(opdRecs.filter(r=>r.apptData?.primaryDoctorId===user.id));
       else setArchive(allRecs);
     } catch(_) {}
   };
@@ -1289,13 +1300,13 @@ export default function App() {
 
   const savePhysicianNotes=async()=>{
     if(!viewRec)return;
-    const updated={...viewRec,physicianNotes:physNotes};
+    const updated={...viewRec, physicianNotes:physNotes};
     try{
-      await storage.set(viewRec.id,JSON.stringify(updated));
+      await storage.set(viewRec.id, JSON.stringify(updated));
       setViewRec(updated);
       setAllArchive(prev=>prev.map(r=>r.id===viewRec.id?updated:r));
       setArchive(prev=>prev.map(r=>r.id===viewRec.id?updated:r));
-      setPhysNotesSaved(true);setTimeout(()=>setPhysNotesSaved(false),2500);
+      setPhysNotesSaved(true); setTimeout(()=>setPhysNotesSaved(false),2500);
       setPhysNotes(p=>({...p,savedAt:new Date().toISOString()}));
     }catch(_){}
   };
@@ -1303,9 +1314,12 @@ export default function App() {
   /* Open a pending appointment directly as a physician case sheet,
      without waiting for the lifestyle doctor to complete their Rx.
      Creates a lightweight rx: record from the appointment data.     */
+  /* Open the physician's OPD case sheet for a pending appointment.
+     Saves to opd:APPTCODE — completely independent of the lifestyle rx: record. */
   const openPendingAppt=async(appt)=>{
-    const recId=`rx:${appt.code}`;
-    // Check if a partial record already exists (e.g. physician saved earlier)
+    const recId=`opd:${appt.code}`;
+
+    // Existing OPD record for this appointment — physician may have opened before
     let existing=null;
     try{const s=await storage.get(recId);if(s)existing=JSON.parse(s.value);}catch(_){}
     if(existing){
@@ -1313,29 +1327,37 @@ export default function App() {
       setPhysNotes(existing.physicianNotes||BLANK_PHY_NOTES());
       return;
     }
-    // Build synthetic record from appointment
+
+    // Seed patient data from appointment + patient-filled form (shared read-only input)
+    const dem=appt.patientDemographics||{};
+    const med=appt.patientMedical||{};
     const rec={
       id:recId,
-      savedAt:appt.createdAt||new Date().toISOString(),
+      savedAt:new Date().toISOString(),
       apptData:appt,
       patient:{
-        name:appt.patientName||"",
-        uhid:appt.patientUhid||"",
-        age:appt.age||appt.patientDemographics?.age||"",
-        gender:appt.gender||appt.patientDemographics?.gender||"",
-        mobile:appt.mobile||"",
-        email:appt.email||"",
-        address:appt.address||"",
-        diagnosis:appt.primarySpecialty||"",
-        chiefComplaint:appt.chiefComplaint||"",
-        pastHistory:"", medications:"", allergies:"", height:"", weight:"",
-        bloodGroup:"", familyHistory:"",
+        name:  dem.name||appt.patientName||"",
+        uhid:  appt.patientUhid||"",
+        age:   dem.age||appt.age||"",
+        gender:dem.gender||appt.gender||"",
+        mobile:dem.mobile||appt.mobile||"",
+        email: dem.email||appt.email||"",
+        address:dem.address||appt.address||"",
+        bloodGroup:dem.bloodGroup||"",
+        dob:   dem.dob||"",
+        occupation:dem.occupation||"",
+        // Medical info from patient's pre-filled form
+        chiefComplaint:med.chiefComplaint||appt.chiefComplaint||"",
+        pastHistory:   med.pastHistory||"",
+        medications:   med.medications||"",
+        allergies:     med.allergies||"",
+        height:        med.height||"",
+        weight:        med.weight||"",
+        familyHistory: med.familyHistory||"",
+        diagnosis:     appt.primarySpecialty||"",
       },
-      rx:null,  // lifestyle Rx not yet done
       physicianNotes:BLANK_PHY_NOTES(),
-      _pendingLifestyle:true,  // flag so UI can show a notice
     };
-    // Persist so the record appears in archive on next load
     try{await storage.set(recId,JSON.stringify(rec));}catch(_){}
     setAllArchive(prev=>[rec,...prev.filter(r=>r.id!==recId)]);
     setArchive(prev=>[rec,...prev.filter(r=>r.id!==recId)]);
@@ -1489,11 +1511,17 @@ Respond ONLY with a single raw JSON object. No markdown. No explanation. Strict 
     setErr("");
     try{
       const linkedAppt=appointments.find(a=>a.patientUhid===patient.uhid&&a.doctorId===user.id);
-      const recId=editingRecId||`rx:${user.id}:${Date.now()}`;
-      const rec={id:recId,doctorId:user.id,doctorName:user.name,
-        savedAt:new Date().toISOString(),patient:{...patient},rx:editedRx,
+      // Always use rx:APPTCODE when linked to an appointment; fall back to timestamp key for walk-ins
+      const recId=editingRecId||(linkedAppt?`rx:${linkedAppt.code}`:`rx:${user.id}:${Date.now()}`);
+      const rec={
+        id:recId,
+        doctorId:user.id, doctorName:user.name,
+        savedAt:new Date().toISOString(),
+        patient:{...patient},
+        rx:editedRx,
         formData:{diet,activity,sleep,bowel,mic,appetite,stress,habits,menstrual,goals},
-        apptData:linkedAppt||null};
+        apptData:linkedAppt||null,
+      };
       await storage.set(recId,JSON.stringify(rec));
       await loadData();
       setViewRec(rec);setEditedRx(null);setEditingRecId(null);setTab("view");
@@ -1654,6 +1682,8 @@ Respond ONLY with a single raw JSON object. No markdown. No explanation. Strict 
       const doc=doctors.find(d=>d.id===a.doctorId);
       const primaryDoc2 = doctors.find(d=>d.id===a.primaryDoctorId);
       const visitLabel = a.visitType==="mhc"?"Master Health Check-up":a.visitType==="walkin_mhc"?"Master Health Check-up (Walk-in)":"Specialist Consultation";
+      const appUrl=window.location.origin;
+      const patientLink=`${appUrl}?code=${a.code}`;
       const smsText=a.visitType==="walkin_mhc"
         ?`Dear ${a.patientName},
 
@@ -1661,7 +1691,7 @@ Welcome to Jayadev Memorial Rashtrotthana Hospital!
 
 While you wait for your Master Health Check-up, please take 5 minutes to fill your health form. This will be used for your complimentary Lifestyle Consultation.
 
-➡ lifestyle.jmrh.in
+➡ ${patientLink}
 
 Your code: ${a.code}
 
@@ -1675,26 +1705,33 @@ Your appointment at Jayadev Memorial Rashtrotthana Hospital is confirmed.
 
 🌿 Free Lifestyle Consultation included.
    Please fill your health form before visiting — it takes 5 minutes:
-   ➡ lifestyle.jmrh.in
+   ➡ ${patientLink}
 
 Your code: ${a.code}
 
 सर्वे सन्तु निरामयाः
 Jayadev Memorial Rashtrotthana Hospital & Research Centre`
+      const waUrl=`https://wa.me/${(a.mobile||"").replace(/\D/g,"")}?text=${encodeURIComponent(smsText)}`;
       return (
         <div className="overlay" onClick={()=>setModal(null)}>
           <div className="modal" onClick={e=>e.stopPropagation()}>
             <div className="modal-title">✅ Appointment Created</div>
-            <div className="modal-sub">Send this SMS to the patient's mobile: {a.mobile}</div>
+            <div className="modal-sub">Send this to the patient's mobile: <strong>{a.mobile}</strong></div>
             <div className="code-display">
               <div className="code-num">{a.code}</div>
               <div className="code-label">Appointment Code</div>
             </div>
+            <div style={{background:C.teal50,border:`1px solid ${C.teal100}`,borderRadius:8,padding:"6px 12px",marginBottom:8,fontSize:11,color:C.teal700,wordBreak:"break-all"}}>
+              🔗 Patient link: <strong>{patientLink}</strong>
+            </div>
             <div className="sms-box">{smsText}</div>
-            <div style={{display:"flex",gap:10}}>
+            <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
               <button className="btn btn-teal" style={{flex:1}} onClick={()=>{navigator.clipboard?.writeText(smsText);copiedMsg();}}>
-                {copied?"✓ Copied!":"📋 Copy SMS"}
+                {copied?"✓ Copied!":"📋 Copy Message"}
               </button>
+              <a className="btn btn-lime" style={{flex:1,textAlign:"center",textDecoration:"none"}} href={waUrl} target="_blank" rel="noreferrer">
+                💬 Send via WhatsApp
+              </a>
               <button className="btn btn-ghost" style={{flex:1}} onClick={()=>setModal(null)}>Close</button>
             </div>
           </div>
@@ -1753,7 +1790,11 @@ Jayadev Memorial Rashtrotthana Hospital & Research Centre`
             </div>
             <div><div className="fl">Date of Birth</div>
               <input type="date" className="ti" value={patient.dob||""}
-                onChange={e=>setPatient({...patient,dob:e.target.value})}/>
+                onChange={e=>{
+                  const dob=e.target.value;
+                  const age=dob?Math.floor((Date.now()-new Date(dob))/(365.25*24*60*60*1000)):"";
+                  setPatient({...patient,dob,age:age!==""?String(age):patient.age});
+                }}/>
             </div>
           </div>
           <div className="r3 fg">
@@ -2507,11 +2548,11 @@ Jayadev Memorial Rashtrotthana Hospital & Research Centre`
               <div style={{fontSize:12,color:C.muted,marginTop:2}}>{user.specialty}</div>
             </div>
 
-            {/* ── PENDING APPOINTMENTS (registered but lifestyle Rx not yet done) ── */}
+            {/* ── PENDING APPOINTMENTS (registered but OPD case sheet not yet opened) ── */}
             {(()=>{
               const pendingAppts = appointments.filter(a=>
                 a.primaryDoctorId===user.id &&
-                !allArchive.some(r=>r.apptData?.code===a.code)
+                !archive.some(r=>r.apptData?.code===a.code)
               );
               if(pendingAppts.length===0) return null;
               return(
@@ -2555,7 +2596,7 @@ Jayadev Memorial Rashtrotthana Hospital & Research Centre`
 
             <div className="stats-row">
               <div className="stat-box"><div className="stat-num">{archive.length}</div><div className="stat-label">Completed Rx</div></div>
-              <div className="stat-box"><div className="stat-num" style={{color:C.warn}}>{appointments.filter(a=>a.primaryDoctorId===user.id&&!allArchive.some(r=>r.apptData?.code===a.code)).length}</div><div className="stat-label">Pending</div></div>
+              <div className="stat-box"><div className="stat-num" style={{color:C.warn}}>{appointments.filter(a=>a.primaryDoctorId===user.id&&!archive.some(r=>r.apptData?.code===a.code)).length}</div><div className="stat-label">Pending</div></div>
               <div className="stat-box"><div className="stat-num" style={{color:C.danger}}>{archive.filter(r=>r.rx?.riskCategory==="High").length}</div><div className="stat-label">High Risk</div></div>
               <div className="stat-box"><div className="stat-num" style={{color:C.success}}>{archive.filter(r=>r.rx?.riskCategory==="Low").length}</div><div className="stat-label">Low Risk</div></div>
             </div>
@@ -2593,15 +2634,6 @@ Jayadev Memorial Rashtrotthana Hospital & Research Centre`
                 <button className="btn btn-rust" onClick={printOpd}>🖨 Print</button>
               </div>
             </div>
-
-            {/* Lifestyle-pending notice */}
-            {viewRec._pendingLifestyle&&!viewRec.rx&&<div className="no-print" style={{background:"#FFFBEB",border:"1.5px solid #FDE68A",borderRadius:10,padding:"10px 16px",marginBottom:12,display:"flex",alignItems:"center",gap:10}}>
-              <span style={{fontSize:18}}>⏳</span>
-              <div>
-                <div style={{fontSize:13,fontWeight:700,color:"#92400E"}}>Lifestyle consultation not yet completed</div>
-                <div style={{fontSize:11,color:"#78350F",marginTop:2}}>You can fill and save your OPD notes now. Once the lifestyle doctor completes their Rx, it will appear on this record automatically.</div>
-              </div>
-            </div>}
 
             {/* ══ PRINT TARGET ══ */}
             <div id="print-opd">
@@ -2929,7 +2961,7 @@ Jayadev Memorial Rashtrotthana Hospital & Research Centre`
 
   /* ── DOCTOR PORTAL ── */
   if(user.role==="doctor"){
-    const pendingAppts=appointments.filter(a=>a.doctorId===user.id&&(a.status==="pending"||a.status==="form_filled"));
+    const pendingAppts=appointments.filter(a=>a.doctorId===user.id&&!archive.some(r=>r.apptData?.code===a.code));
     return(
       <>
         <style>{G}</style>
