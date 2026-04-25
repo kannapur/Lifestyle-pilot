@@ -457,7 +457,9 @@ body{background:${C.bg};font-family:'DM Sans',sans-serif;color:${C.text};-webkit
   .tbl thead{display:none;}
   .tbl tr{display:block;border:1px solid #C5DDE3;border-radius:10px;margin-bottom:10px;padding:10px 12px;background:#FFFFFF;}
   .tbl td{display:flex;justify-content:space-between;align-items:flex-start;padding:4px 0;border:none;font-size:13px;}
+  .mobile-bottom-nav{display:flex;}
 }
+.mobile-bottom-nav{display:none;}
 `;
 
 /* ═══════════════════════════════════════════════════════════
@@ -2254,7 +2256,7 @@ Jayadev Memorial Rashtrotthana Hospital & Research Centre`
     <>
       <style>{G}</style>
       <Modal/>
-      <div style={{background:C.bg,minHeight:"100vh"}}>
+      <div style={{background:C.bg,minHeight:"100vh",paddingBottom:64}}>
         <div className="nav no-print">
           <HospLogo variant="nav"/>
           <div className="nav-r">
@@ -2266,6 +2268,16 @@ Jayadev Memorial Rashtrotthana Hospital & Research Centre`
             <div className="nav-av" style={{background:C.lime,color:C.teal900}}>AD</div>
             <button className="nbtn" onClick={()=>{setUser(null);setArchive([]);resetForm();}}>Sign Out</button>
           </div>
+        </div>
+
+        {/* Mobile bottom nav — admin only */}
+        <div className="mobile-bottom-nav no-print" style={{position:"fixed",bottom:0,left:0,right:0,background:C.teal900,display:"flex",zIndex:100,borderTop:`2px solid ${C.teal700}`}}>
+          {[{t:"home",i:"🏠",l:"Home"},{t:"appointments",i:"📅",l:"Register"},{t:"doctors",i:"👨‍⚕️",l:"Doctors"},{t:"analytics",i:"📊",l:"Analytics"}].map(x=>(
+            <button key={x.t} onClick={()=>setTab(x.t)} style={{flex:1,padding:"10px 4px",border:"none",background:tab===x.t?"rgba(255,255,255,0.15)":"transparent",color:tab===x.t?"white":"rgba(255,255,255,0.55)",cursor:"pointer",display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
+              <span style={{fontSize:18}}>{x.i}</span>
+              <span style={{fontSize:10,fontWeight:tab===x.t?700:400}}>{x.l}</span>
+            </button>
+          ))}
         </div>
 
         {tab==="home"&&<div className="page fade">
