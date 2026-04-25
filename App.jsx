@@ -247,7 +247,7 @@ body{background:${C.bg};font-family:'DM Sans',sans-serif;color:${C.text};-webkit
 .auth-card{background:${C.card};border:1px solid ${C.border};border-radius:20px;width:100%;max-width:460px;padding:30px;box-shadow:0 8px 40px rgba(9,61,74,0.1);}
 .auth-h{font-family:'Playfair Display',serif;font-size:22px;color:${C.teal900};margin-bottom:4px;}
 .auth-sub{font-size:13px;color:${C.muted};margin-bottom:22px;}
-.role-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:4px;}
+.role-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:4px;}
 .role-btn{border:2px solid ${C.border};background:${C.bg};border-radius:13px;padding:16px 10px;cursor:pointer;transition:all 0.2s;text-align:center;}
 .role-btn:hover{border-color:${C.teal400};background:${C.teal50};}
 .role-btn.sel{border-color:${C.teal700};background:${C.teal50};}
@@ -720,10 +720,13 @@ export default function App() {
       setDoctors(SEED_DOCTORS);
     } else {
       const parsed = JSON.parse(storedDocs.value);
-      // Migrate old records that are missing the 'type' field
-      const needsMigration = parsed.some(d=>!d.type);
+      // Migrate: add type field if missing, and add passwords to primary consultants if missing
+      const needsMigration = parsed.some(d=>!d.type || (d.type==="primary" && !d.password));
       if(needsMigration) {
-        const migrated = parsed.map(d=>({...d, type: d.type || (d.password?"lifestyle":"primary")}));
+        const migrated = parsed.map(d=>{
+          const seed = SEED_DOCTORS.find(s=>s.id===d.id);
+          return {...d, type: d.type || (d.password?"lifestyle":"primary"), password: d.password || seed?.password || ""};
+        });
         try { await storage.set("doctors",JSON.stringify(migrated)); } catch(_) {}
         setDoctors(migrated);
       } else {
