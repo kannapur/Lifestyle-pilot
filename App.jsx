@@ -2446,17 +2446,59 @@ Jayadev Memorial Rashtrotthana Hospital & Research Centre`
               <div style={{fontFamily:"'Playfair Display',serif",fontSize:26,color:C.teal900}}>{user.name}</div>
               <div style={{fontSize:12,color:C.muted,marginTop:2}}>{user.specialty}</div>
             </div>
+
+            {/* ── PENDING APPOINTMENTS (registered but lifestyle Rx not yet done) ── */}
+            {(()=>{
+              const pendingAppts = appointments.filter(a=>
+                a.primaryDoctorId===user.id &&
+                !allArchive.some(r=>r.apptData?.code===a.code)
+              );
+              if(pendingAppts.length===0) return null;
+              return(
+                <div style={{marginBottom:20}}>
+                  <div style={{fontSize:12,fontWeight:700,color:C.warn,textTransform:"uppercase",letterSpacing:0.8,marginBottom:8,display:"flex",alignItems:"center",gap:6}}>
+                    <span>⏳</span> Awaiting Lifestyle Consultation ({pendingAppts.length})
+                  </div>
+                  {pendingAppts.map((a,i)=>(
+                    <div key={i} style={{background:C.warnLt,border:`1.5px solid #FDE68A`,borderRadius:12,padding:"12px 16px",marginBottom:8,display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:8}}>
+                      <div>
+                        <div style={{fontWeight:700,fontSize:14,color:C.text}}>{a.patientName}</div>
+                        <div style={{fontSize:11,color:C.muted,marginTop:2}}>
+                          UHID: {a.patientUhid}
+                          {a.patientDemographics?.age ? ` · ${a.patientDemographics.age}yr` : ""}
+                          {a.patientDemographics?.gender ? ` · ${a.patientDemographics.gender}` : ""}
+                        </div>
+                        {a.chiefComplaint&&<div style={{fontSize:11,color:C.warn,marginTop:2,fontStyle:"italic"}}>"{a.chiefComplaint}"</div>}
+                        <div style={{fontSize:10,color:C.muted,marginTop:2}}>
+                          Registered {fmtDate(a.createdAt)}
+                          {a.status==="form_filled"
+                            ? <span style={{color:C.success,fontWeight:600,marginLeft:6}}>✓ Patient form filled</span>
+                            : <span style={{color:C.muted,marginLeft:6}}>Patient form pending</span>
+                          }
+                        </div>
+                      </div>
+                      <div style={{fontSize:11,color:C.muted,textAlign:"right"}}>
+                        <div>Lifestyle Dr:</div>
+                        <div style={{fontWeight:600,color:C.teal700}}>{a.lifestyleDoctorName||"—"}</div>
+                        <div style={{marginTop:4,padding:"3px 10px",background:C.warnLt,border:`1px solid #FDE68A`,borderRadius:10,fontSize:10,color:C.warn,fontWeight:600}}>Lifestyle Rx Pending</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              );
+            })()}
+
             <div className="stats-row">
-              <div className="stat-box"><div className="stat-num">{archive.length}</div><div className="stat-label">Consultations</div></div>
+              <div className="stat-box"><div className="stat-num">{archive.length}</div><div className="stat-label">Completed Rx</div></div>
+              <div className="stat-box"><div className="stat-num" style={{color:C.warn}}>{appointments.filter(a=>a.primaryDoctorId===user.id&&!allArchive.some(r=>r.apptData?.code===a.code)).length}</div><div className="stat-label">Pending</div></div>
               <div className="stat-box"><div className="stat-num" style={{color:C.danger}}>{archive.filter(r=>r.rx?.riskCategory==="High").length}</div><div className="stat-label">High Risk</div></div>
-              <div className="stat-box"><div className="stat-num" style={{color:C.warn}}>{archive.filter(r=>r.rx?.riskCategory==="Moderate").length}</div><div className="stat-label">Moderate</div></div>
               <div className="stat-box"><div className="stat-num" style={{color:C.success}}>{archive.filter(r=>r.rx?.riskCategory==="Low").length}</div><div className="stat-label">Low Risk</div></div>
             </div>
             {archive.length===0
-              ?<div className="card" style={{textAlign:"center",padding:"48px 20px",color:C.muted}}>
+              ?<div className="card" style={{textAlign:"center",padding:"36px 20px",color:C.muted}}>
                 <div style={{fontSize:36,marginBottom:10}}>📋</div>
-                <div style={{fontSize:16,fontWeight:600,marginBottom:4}}>No consultations yet</div>
-                <div style={{fontSize:13}}>Completed lifestyle consultations for your referred patients will appear here.</div>
+                <div style={{fontSize:16,fontWeight:600,marginBottom:4}}>No completed consultations yet</div>
+                <div style={{fontSize:13}}>Once the lifestyle doctor completes a consultation for your referred patients, it will appear here for you to add your OPD notes.</div>
               </div>
               :<div className="arch-grid">
                 {archive.filter(r=>{const q=search.toLowerCase();return !q||r.patient?.name?.toLowerCase().includes(q)||r.patient?.uhid?.toLowerCase().includes(q);}).map((r,i)=>(
